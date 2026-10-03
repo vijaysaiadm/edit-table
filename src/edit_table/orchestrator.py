@@ -19,6 +19,7 @@ from .config import Settings
 from .llm import make_llm
 from .models import (AnalysisResult, Brief, Conflict, FinalVerdict, GenreFinding,
                      SceneAnalysis, UtilityResult)
+from .prompts.doctor import develop_prompt, doctor_prompt
 from .prompts.genre import SPECIALISTS, genre_prompt
 from .prompts.lead import lead_brief_prompt
 from .prompts.reconcile import reconcile_prompt, stage1_full_prompt
@@ -144,3 +145,20 @@ async def run_analysis(path: str | Path, settings: Settings,
     result.stages.append(f"reconcile: lead resolved {len(result.conflicts)} conflict(s) "
                          f"[{time.time()-t:.1f}s]")
     return result
+
+
+async def run_doctor(path: str | Path, settings: Settings,
+                     target_runtime: float | None = None) -> str:
+    """Deep editorial review (Senior Screen Editor A–O report) as raw Markdown."""
+    llm = make_llm(settings)
+    sp = load_screenplay(path, settings)
+    system, user = doctor_prompt(sp.raw_text[:60000], sp.title, target_runtime)
+    return await llm.chat_markdown(system, user)
+
+
+async def run_develop(logline: str, settings: Settings,
+                      fmt: str = "feature") -> str:
+    """Logline/premise → full development package (Delivery Order 1–11) as Markdown."""
+    llm = make_llm(settings)
+    system, user = develop_prompt(logline, fmt)
+    return await llm.chat_markdown(system, user)

@@ -19,7 +19,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
 from .config import load_settings
-from .orchestrator import run_analysis
+from .orchestrator import run_analysis, run_develop, run_doctor
 from .paths import data_path
 from .report import render_report, save_outputs
 from .server_settings import DEFAULT_SETTINGS_FILE, ServerSettingsStore
@@ -40,6 +40,8 @@ class AnalyzeRequest(BaseModel):
     title: str = "Untitled Screenplay"
     target_runtime: float | None = None
     stage: str = "full"
+    mode: str = "analyze"      # analyze | doctor | develop
+    fmt: str = "feature"       # feature / web series / tv serial / sitcom / short film
 
 
 class SettingsRequest(BaseModel):
@@ -106,8 +108,18 @@ def create_app(tenants_file: str | Path | None = None,
         return {"status": "ok", "tenants": len(registry.list())}
 
     # ── tenant analysis ─────────────────────────────────────────────────────
+    async def _save_markdown(tenant: Tenant, md_text: str, kind: str,
+                             title: str) -> JSONResponse:
+        out = data_path("reports") / tenant.tenant_id
+        out.mkdir(parents=True, exist_ok=True)
+        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:60] or kind
+        path = out / f"{safe}_{kind}_report.md"
+        path.write_text(md_text, encoding="utf-8")
+        return JSONResponse({"tenant": tenant.tenant_id, "report_md": md_text,
+                             "report_path": str(path), "mode": kind})
+
     async def _run(tenant: Tenant, tmp: str, target_runtime: float | None,
-                   stage: str) -> JSONResponse:
+                   stage: str, mode: str = "analyze") -> JSONResponse:
         shared = tenant.tenant_id == PUBLIC_TENANT.tenant_id
         # shared/open-access traffic must not serialize: skip the single-flight guard
         if not shared:
@@ -116,6 +128,9 @@ def create_app(tenants_file: str | Path | None = None,
             _running[tenant.tenant_id] = True
         try:
             settings = load_settings(tenant=tenant, server_defaults=store.get())
+            if mode == "doctor":   # deep editorial review → raw markdown A–O report
+                md_text = await run_doctor(tmp, settings, target_runtime=target_runtime)
+                return await _save_markdown(tenant, md_text, "doctor", Path(tmp).stem)
             stages = (1,) if stage == "1" else (1, 2, 3)
             result = await run_analysis(tmp, settings, target_runtime=target_runtime,
                                         stages=stages)
@@ -123,7 +138,7 @@ def create_app(tenants_file: str | Path | None = None,
             return JSONResponse({"tenant": tenant.tenant_id,
                                  "report_md": render_report(result),
                                  "report_path": str(md), "data_path": str(js),
-                                 "stages": result.stages})
+                                 "stages": result.stages, "mode": "analyze"})
         finally:
             if not shared:
                 _running[tenant.tenant_id] = False
@@ -131,19 +146,24 @@ def create_app(tenants_file: str | Path | None = None,
     @app.post("/api/analyze")
     async def analyze_text(req: AnalyzeRequest,
                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
+        if req.mode == "develop":   # logline → development package; text IS the input
+            settings = load_settings(tenant=tenant, server_defaults=store.get())
+            md_text = await run_develop(req.screenplay_text, settings, fmt=req.fmt)
+            return await _save_markdown(tenant, md_text, "develop", "logline_development")
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
                                          encoding="utf-8") as f:
             f.write(req.screenplay_text)
             tmp = f.name
-        return await _run(tenant, tmp, req.target_runtime, req.stage)
+        return await _run(tenant, tmp, req.target_runtime, req.stage, mode=req.mode)
 
     @app.post("/api/analyze-file")
     async def analyze_file(file: UploadFile = File(...),
                            target_runtime: float | None = Form(None),
                            stage: str = Form("full"),
+                           mode: str = Form("analyze"),
                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
         tmp = await _spool(file)
-        return await _run(tenant, tmp, target_runtime, stage)
+        return await _run(tenant, tmp, target_runtime, stage, mode=mode)
 
     async def _spool(file: UploadFile) -> str:
         """Stream upload to a temp file in 1 MB chunks — no in-memory size limit."""
@@ -157,6 +177,7 @@ def create_app(tenants_file: str | Path | None = None,
     async def analyze_files(files: list[UploadFile] = File(...),
                             target_runtime: float | None = Form(None),
                             stage: str = Form("full"),
+                            mode: str = Form("analyze"),
                             tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
         """Analyze many attachments in one request, sequentially, per-tenant guard held
         for the whole batch. Returns one result per file (failures don't stop the rest)."""
@@ -165,7 +186,7 @@ def create_app(tenants_file: str | Path | None = None,
             name = file.filename or "script.txt"
             try:
                 tmp = await _spool(file)
-                r = await _run(tenant, tmp, target_runtime, stage)
+                r = await _run(tenant, tmp, target_runtime, stage, mode=mode)
                 payload = json.loads(r.body.decode())
                 payload["filename"] = name
                 results.append(payload)

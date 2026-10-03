@@ -71,6 +71,10 @@ class RealLLM:
     async def chat_json(self, system: str, user: str, model: str | None = None) -> dict:
         return _extract_json(await self.chat(system, user, json_mode=True, model=model))
 
+    async def chat_markdown(self, system: str, user: str, model: str | None = None) -> str:
+        """Free-form markdown output (deep review / development modes)."""
+        return await self.chat(system, user, json_mode=False, model=model)
+
 
 class MockLLM:
     """Offline stand-in: pattern-based responses so every pipeline stage runs without a key."""
@@ -79,6 +83,12 @@ class MockLLM:
                    model: str | None = None, max_retries: int = 3) -> str:
         await asyncio.sleep(0.01)  # simulate latency, keep concurrency paths exercised
         return json.dumps(self._reply(system, user))
+
+    async def chat_markdown(self, system: str, user: str, model: str | None = None) -> str:
+        tag = _tag(system)
+        return (f"# MOCK {tag.upper()} REPORT\n\nConnect a real LLM for the full "
+                f"{tag} analysis. Input received: {len(user)} chars.\n\n"
+                "## A. REVIEW SCOPE\nMock mode.\n\n## B. EXECUTIVE DIAGNOSIS\nMock mode.")
 
     async def chat_json(self, system: str, user: str, model: str | None = None) -> dict:
         return self._reply(system, user)

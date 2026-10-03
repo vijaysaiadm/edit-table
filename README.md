@@ -128,12 +128,27 @@ edit-table tenant create editor-b "Independent Editor B"
 # Solo single-agent mode (stage 1)
 edit-table analyze screenplay.txt --stage 1
 
+# Deep editorial review — the Senior Screen Editor A–O report
+# (script mode: narrative/editability/coverage/runtime estimation, P0–P3 priorities)
+edit-table analyze screenplay.txt --mode doctor --target-runtime 150
+
+# Develop a logline into a full development package (Delivery Order 1–11:
+# refined logline → story foundation → 3-act beat sheet → scene outline →
+# critical pass → producer pitch → screenplay draft)
+edit-table develop "A disgraced boxer gets one last shot at the title." --format feature
+
 # Offline test without an API key (deterministic mock workers)
 edit-table analyze examples/sample_screenplay.txt --mock
+edit-table develop "A logline..." --mock
 
 # Multi-tenant web UI (clients sign in with their X-API-Key token)
 edit-table serve    # http://localhost:7100
 ```
+
+In the web UI, the **Mode** dropdown offers all of these: *Full swarm*, *Stage 1 solo*,
+*Deep editorial review*, and *Develop logline → screenplay* (paste the logline into the
+text box for that one; it takes text, not files). Both prompt frameworks load verbatim
+from `prompts-source/` — edit those files to tune the reviewer's behaviour.
 
 Outputs land in `reports/` as a Markdown edit report (sections A–P from the master prompt)
 plus the full JSON data for downstream tooling.
@@ -165,11 +180,15 @@ src/edit_table/
   screenplay.py    loader + heuristic scene splitter (INT./EXT., SCENE n, సీన్ n)
   models.py        dataclasses for every pipeline artifact
   prompts/         prompt builders; doctrine condensed from the master prompt
+  prompts/doctor.py  deep-review (A–O) + logline-development wrappers — load the
+                     frameworks verbatim from prompts-source/
   orchestrator.py  the swarm: brief → parallel workers → specialists → reconciliation
+                    (+ run_doctor / run_develop markdown modes)
   report.py        A–P markdown report renderer
-  cli.py           `edit-table analyze|serve`
+  cli.py           `edit-table analyze|develop|tenant|serve`
   server.py        FastAPI REST API + embedded web UI (web/index.html)
-prompts-source/MASTER_AGENT.txt   the source-of-truth master prompt
+prompts-source/   source-of-truth prompt frameworks (master agent, senior screen
+                  editor, logline-to-screenplay) — edit these, not the code
 examples/        sample_screenplay.txt (clean) · flawed_screenplay.txt (7 planted defects
                  listed at the end — use it to verify the pipeline catches them)
 tests/           offline pipeline tests (mock mode)

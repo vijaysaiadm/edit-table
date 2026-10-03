@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from edit_table.config import Settings  # noqa: E402
 from edit_table.models import Brief, Scene  # noqa: E402
-from edit_table.orchestrator import run_analysis  # noqa: E402
+from edit_table.orchestrator import run_analysis, run_develop, run_doctor  # noqa: E402
 from edit_table.report import render_report, save_outputs  # noqa: E402
 from edit_table.screenplay import load_screenplay, split_scenes  # noqa: E402
 
@@ -112,6 +112,17 @@ def test_server_settings_priority(tmp_path):
     masked_view = store.get()
     assert store.verify_admin(store.ensure_admin_token())
     assert not store.verify_admin("wrong")
+
+
+def test_doctor_and_develop_mock():
+    """New modes return raw markdown, work offline in mock mode."""
+    import asyncio
+    s = Settings(mock=True)
+    md = asyncio.run(run_doctor(SAMPLE, s, target_runtime=150))
+    assert isinstance(md, str) and "MOCK DOCTOR REPORT" in md
+    dev = asyncio.run(run_develop("A disgraced boxer gets one last shot at the title.",
+                                  s, fmt="feature"))
+    assert isinstance(dev, str) and "MOCK DEVELOP REPORT" in dev
 
 
 if __name__ == "__main__":

@@ -50,7 +50,9 @@
     <input type="number" id="runtime" min="30" max="400" placeholder="150">
     <label>Mode</label>
     <select id="stage"><option value="full">Full swarm (stages 1+2+3)</option>
-      <option value="1">Stage 1 — solo single agent</option></select>
+      <option value="1">Stage 1 — solo single agent</option>
+      <option value="doctor">Deep editorial review (A–O report)</option>
+      <option value="develop">Develop logline → screenplay package (paste a logline)</option></select>
     <button id="go" onclick="analyze()">Analyze 🎞️</button>
     <div id="status"></div>
   </div>
@@ -91,11 +93,14 @@ async function analyze(){
     const headers = token ? {'X-API-Key':token} : {};
     const fs=[...document.getElementById('file').files];
     const stage=document.getElementById('stage').value;
+    const mode=(stage==='doctor'||stage==='develop') ? stage : 'analyze';
     const rt=document.getElementById('runtime').value;
     if(fs.length){
+      if(mode==='develop'){ statusEl.textContent='Develop mode takes a pasted logline — remove the file selection and paste your logline in the text box.'; btn.disabled=false; return; }
       const fd=new FormData();
       fs.forEach(f=>fd.append('files',f));
       fd.append('stage',stage);
+      fd.append('mode',mode);
       if(rt) fd.append('target_runtime',rt);
       statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}`;
       resp=await fetch('/api/analyze-files',{method:'POST',headers,body:fd});
@@ -115,11 +120,11 @@ async function analyze(){
       const text=document.getElementById('text').value;
       if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose file(s) first.'; btn.disabled=false; return; }
       resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json',...headers},
-        body:JSON.stringify({screenplay_text:text, stage, target_runtime: rt?+rt:null})});
+        body:JSON.stringify({screenplay_text:text, stage, mode, target_runtime: rt?+rt:null})});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       reportEl.innerHTML=mdToHtml(data.report_md);
-      statusEl.textContent=data.stages.join('\n')+'\nSaved: '+data.report_path;
+      statusEl.textContent=(data.stages?data.stages.join('\n')+'\n':'')+'Saved: '+data.report_path;
     }
   }catch(e){ statusEl.textContent='Error: '+e.message; }
   btn.disabled=false;

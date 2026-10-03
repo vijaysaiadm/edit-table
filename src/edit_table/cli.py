@@ -1,6 +1,7 @@
 """Command-line interface.
 
-  edit-table analyze <screenplay> [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
+  edit-table analyze <screenplay> [--mode analyze|doctor] [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
+  edit-table develop "A logline..." [--format feature] [--out reports] [--mock]
   edit-table tenant list|create|delete ...
   edit-table serve [--port 7100] [--tenants-file tenants.json]
 """
@@ -12,7 +13,7 @@ import sys
 from pathlib import Path
 
 from .config import load_settings
-from .orchestrator import run_analysis
+from .orchestrator import run_analysis, run_doctor, run_develop
 from .report import save_outputs
 from .tenants import DEFAULT_TENANTS_FILE, TenantRegistry
 
@@ -24,6 +25,8 @@ def main(argv: list[str] | None = None) -> None:
 
     p_an = sub.add_parser("analyze", help="Analyze a screenplay (.txt/.md/.pdf/.fountain)")
     p_an.add_argument("screenplay", help="Path to the screenplay file")
+    p_an.add_argument("--mode", choices=["analyze", "doctor"], default="analyze",
+                      help="'analyze' = swarm edit table; 'doctor' = deep editorial review (A–O report)")
     p_an.add_argument("--tenant", default="default",
                       help="Tenant ID to run as (settings + report isolation)")
     p_an.add_argument("--tenants-file", default=DEFAULT_TENANTS_FILE,
@@ -35,6 +38,14 @@ def main(argv: list[str] | None = None) -> None:
                       help="Offline heuristic mode — tests the pipeline without an API key")
     p_an.add_argument("--stage", choices=["1", "full"], default="full",
                       help="'1' = solo single-agent mode; 'full' = complete swarm (stages 1+2+3)")
+
+    p_dev = sub.add_parser("develop", help="Develop a logline into a full development package (items 1–11)")
+    p_dev.add_argument("logline", help="The logline / premise to develop")
+    p_dev.add_argument("--format", default="feature",
+                       help="feature / web series / tv serial / sitcom / short film")
+    p_dev.add_argument("--out", default="reports", help="Output directory root")
+    p_dev.add_argument("--mock", action="store_true",
+                       help="Offline heuristic mode — tests the pipeline without an API key")
 
     p_t = sub.add_parser("tenant", help="Manage tenants")
     t_sub = p_t.add_subparsers(dest="tenant_command", required=True)
@@ -66,6 +77,17 @@ def main(argv: list[str] | None = None) -> None:
         except RuntimeError as e:
             sys.exit(str(e))
         settings.tenant_id = args.tenant  # keep the ID even for the default tenant
+        if args.mode == "doctor":
+            print(f"Deep editorial review of {args.screenplay} "
+                  f"({'MOCK mode' if args.mock else settings.model})...")
+            md_text = asyncio.run(run_doctor(args.screenplay, settings,
+                                             target_runtime=args.target_runtime))
+            out = Path(args.out) / args.tenant
+            out.mkdir(parents=True, exist_ok=True)
+            md = out / f"{Path(args.screenplay).stem}_doctor_report.md"
+            md.write_text(md_text, encoding="utf-8")
+            print(f"\n✔ Report:  {md}")
+            return
         stages = (1,) if args.stage == "1" else (1, 2, 3)
         print(f"Analyzing {args.screenplay} as tenant '{args.tenant}' "
               f"({'MOCK mode' if args.mock else settings.model}, stage={'1' if stages == (1,) else 'full'})...")
@@ -77,6 +99,20 @@ def main(argv: list[str] | None = None) -> None:
         print(f"✔ Scenes analyzed: {len(result.scene_analyses)} | "
               f"genre findings: {len(result.genre_findings)} | "
               f"conflicts resolved: {len(result.conflicts)}")
+
+    elif args.command == "develop":
+        try:
+            settings = load_settings(mock=args.mock)
+        except RuntimeError as e:
+            sys.exit(str(e))
+        print(f"Developing logline → {args.format} package "
+              f"({'MOCK mode' if args.mock else settings.model})...")
+        md_text = asyncio.run(run_develop(args.logline, settings, fmt=args.format))
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        md = out / "logline_development.md"
+        md.write_text(md_text, encoding="utf-8")
+        print(f"\n✔ Report:  {md}")
 
     elif args.command == "tenant":
         registry = TenantRegistry(args.tenants_file)
