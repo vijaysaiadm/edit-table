@@ -1,7 +1,7 @@
 """Prompt builders. Every system prompt carries a [[ROLE:<tag>]] marker that the
 MockLLM uses to route heuristic replies, and that logging uses to identify workers.
 
-The editorial doctrine below is condensed from prompts-source/MADHAV_MASTER_AGENT.txt
+The editorial doctrine below is condensed from prompts-source/MASTER_AGENT.txt
 (the full 22-section master prompt — the single source of truth for behavior).
 """
 

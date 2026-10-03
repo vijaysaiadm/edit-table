@@ -28,7 +28,7 @@ _running: dict[str, bool] = {}
 
 def create_app(tenants_file: str | Path = DEFAULT_TENANTS_FILE) -> FastAPI:
     registry = TenantRegistry(tenants_file)
-    app = FastAPI(title="madhav-edit", version="0.2.0")
+    app = FastAPI(title="edit-table", version="0.2.0")
     app.state.registry = registry
 
     def current_tenant(token: str | None = Depends(api_key_header)) -> Tenant:
@@ -94,4 +94,4 @@ def create_app(tenants_file: str | Path = DEFAULT_TENANTS_FILE) -> FastAPI:
     return app
 
 
-app = create_app()  # default instance for `uvicorn madhav_edit.server:app`
+app = create_app()  # default instance for `uvicorn edit_table.server:app`

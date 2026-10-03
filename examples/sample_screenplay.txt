@@ -2,7 +2,7 @@ NAGARAM
 
 Written by
 
-A Sample Screenplay for Testing madhav-edit
+A Sample Screenplay for Testing edit-table
 
 EXT. CITY MARKET - MORNING
 

@@ -66,7 +66,7 @@ class TenantRegistry:
     def list(self) -> list[Tenant]:
         return list(self._tenants.values())
 
-    # ── management helpers (CLI: madhav-edit tenant …) ──────────────────────
+    # ── management helpers (CLI: edit-table tenant …) ──────────────────────
     def _save(self) -> None:
         payload = {"tenants": {t.tenant_id: {
             "display_name": t.display_name, "api_token": t.api_token,

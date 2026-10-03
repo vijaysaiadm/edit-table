@@ -4,11 +4,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from madhav_edit.config import Settings  # noqa: E402
-from madhav_edit.models import Brief, Scene  # noqa: E402
-from madhav_edit.orchestrator import run_analysis  # noqa: E402
-from madhav_edit.report import render_report, save_outputs  # noqa: E402
-from madhav_edit.screenplay import load_screenplay, split_scenes  # noqa: E402
+from edit_table.config import Settings  # noqa: E402
+from edit_table.models import Brief, Scene  # noqa: E402
+from edit_table.orchestrator import run_analysis  # noqa: E402
+from edit_table.report import render_report, save_outputs  # noqa: E402
+from edit_table.screenplay import load_screenplay, split_scenes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE = ROOT / "examples" / "sample_screenplay.txt"
@@ -65,8 +65,8 @@ def test_solo_stage1_mock():
 def test_multi_tenant_isolation(tmp_path):
     """Two tenants: own keys/models, token lookup, per-tenant report folders."""
     import asyncio
-    from madhav_edit.config import load_settings
-    from madhav_edit.tenants import TenantRegistry
+    from edit_table.config import load_settings
+    from edit_table.tenants import TenantRegistry
 
     reg = TenantRegistry(tmp_path / "tenants.json")
     a = reg.create("studio-a", "Studio A", llm_api_key="sk-a", llm_model="gpt-4o")

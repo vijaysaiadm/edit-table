@@ -1,8 +1,8 @@
 """Command-line interface.
 
-  madhav-edit analyze <screenplay> [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
-  madhav-edit tenant list|create|delete ...
-  madhav-edit serve [--port 7100] [--tenants-file tenants.json]
+  edit-table analyze <screenplay> [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
+  edit-table tenant list|create|delete ...
+  edit-table serve [--port 7100] [--tenants-file tenants.json]
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .tenants import DEFAULT_TENANTS_FILE, TenantRegistry
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="madhav-edit",
+    parser = argparse.ArgumentParser(prog="edit-table",
                                      description="Agentic film-editing screenplay analysis (multi-tenant)")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.tenant_command == "list":
             tenants = registry.list()
             if not tenants:
-                print("No tenants. Create one: madhav-edit tenant create studio-a \"Studio A\"")
+                print("No tenants. Create one: edit-table tenant create studio-a \"Studio A\"")
             for t in tenants:
                 key = "own LLM key" if t.has_own_llm() else "server default"
                 print(f"- {t.tenant_id} ({t.display_name}) · {key} · model={t.llm_model or 'inherit'}")
