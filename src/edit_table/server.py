@@ -46,6 +46,7 @@ class SettingsRequest(BaseModel):
     llm_api_key: str | None = None
     llm_model: str | None = None
     llm_base_url: str | None = None
+    open_access: bool | None = None
 
 
 class TenantCreate(BaseModel):
@@ -54,6 +55,11 @@ class TenantCreate(BaseModel):
     llm_api_key: str | None = None
     llm_model: str | None = None
     llm_base_url: str | None = None
+
+
+# shared identity used when open access is enabled — no token needed at all
+PUBLIC_TENANT = Tenant(tenant_id="public", display_name="Shared (open access)",
+                       api_token="")
 
 
 def create_app(tenants_file: str | Path | None = None,
@@ -68,11 +74,19 @@ def create_app(tenants_file: str | Path | None = None,
         print(f"\n  🔑 Admin UI: /admin on this server  (X-Admin-Key: {store.ensure_admin_token()})\n")
 
     def current_tenant(token: str | None = Depends(api_key_header)) -> Tenant:
+        if store.get().get("open_access"):
+            tenant = registry.by_token(token) if token else None
+            return tenant or PUBLIC_TENANT   # no token needed; valid tokens still work
         if not token:
             raise HTTPException(401, "Missing X-API-Key header.")
         tenant = registry.by_token(token)
         if not tenant:
-            raise HTTPException(401, "Unknown API key.")
+            hint = ""
+            if token.startswith("adm_"):
+                hint = " That looks like an ADMIN key — tenant access tokens start with 'tok_'."
+            elif token.startswith("tok_"):
+                hint = " This token isn't registered — create/get a fresh one on the admin page."
+            raise HTTPException(401, "Unknown API key." + hint)
         return tenant
 
     def admin(token: str | None = Depends(admin_key_header)) -> None:
@@ -94,9 +108,12 @@ def create_app(tenants_file: str | Path | None = None,
     # ── tenant analysis ─────────────────────────────────────────────────────
     async def _run(tenant: Tenant, tmp: str, target_runtime: float | None,
                    stage: str) -> JSONResponse:
-        if _running.get(tenant.tenant_id):
-            raise HTTPException(409, "This tenant already has an analysis running.")
-        _running[tenant.tenant_id] = True
+        shared = tenant.tenant_id == PUBLIC_TENANT.tenant_id
+        # shared/open-access traffic must not serialize: skip the single-flight guard
+        if not shared:
+            if _running.get(tenant.tenant_id):
+                raise HTTPException(409, "This tenant already has an analysis running.")
+            _running[tenant.tenant_id] = True
         try:
             settings = load_settings(tenant=tenant, server_defaults=store.get())
             stages = (1,) if stage == "1" else (1, 2, 3)
@@ -108,7 +125,8 @@ def create_app(tenants_file: str | Path | None = None,
                                  "report_path": str(md), "data_path": str(js),
                                  "stages": result.stages})
         finally:
-            _running[tenant.tenant_id] = False
+            if not shared:
+                _running[tenant.tenant_id] = False
 
     @app.post("/api/analyze")
     async def analyze_text(req: AnalyzeRequest,
@@ -168,7 +186,7 @@ def create_app(tenants_file: str | Path | None = None,
     @app.post("/api/admin/settings")
     def update_settings(req: SettingsRequest, _: None = Depends(admin)) -> dict:
         store.update(llm_api_key=req.llm_api_key, llm_model=req.llm_model,
-                     llm_base_url=req.llm_base_url)
+                     llm_base_url=req.llm_base_url, open_access=req.open_access)
         return {"ok": True}
 
     # ── admin: tenant management ────────────────────────────────────────────

@@ -21,7 +21,8 @@ class ServerSettingsStore:
     def __init__(self, path: str | Path = DEFAULT_SETTINGS_FILE):
         self.path = Path(path)
         self._lock = threading.Lock()
-        self._data: dict = {"llm_api_key": None, "llm_model": None, "llm_base_url": None}
+        self._data: dict = {"llm_api_key": None, "llm_model": None, "llm_base_url": None,
+                            "open_access": False}
         self._admin_token: str | None = None
         if self.path.exists():
             self.reload()
@@ -54,7 +55,7 @@ class ServerSettingsStore:
         return dict(self._data)
 
     def update(self, llm_api_key: str | None = None, llm_model: str | None = None,
-               llm_base_url: str | None = None) -> dict:
+               llm_base_url: str | None = None, open_access: bool | None = None) -> dict:
         """Empty string / None leaves a field unchanged; use clear() to unset."""
         with self._lock:
             if llm_api_key:
@@ -63,5 +64,7 @@ class ServerSettingsStore:
                 self._data["llm_model"] = llm_model
             if llm_base_url:
                 self._data["llm_base_url"] = llm_base_url
+            if open_access is not None:
+                self._data["open_access"] = bool(open_access)
             self._save()
         return self.get()

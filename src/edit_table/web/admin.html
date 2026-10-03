@@ -51,6 +51,10 @@
       <div><label>Model</label><input id="model" placeholder="gpt-4o"></div>
       <div><label>Base URL</label><input id="baseUrl" placeholder="https://api.openai.com/v1"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;margin-top:14px;cursor:pointer">
+      <input type="checkbox" id="openAccess" style="width:auto">
+      <span><strong>Open access</strong> — anyone can analyze without a token (uses this server key). Turn off when you onboard paid tenants.</span>
+    </label>
     <button onclick="saveSettings()">Save settings</button>
   </div>
 
@@ -88,6 +92,7 @@ async function loadAll(){
     const sd = await s.json(), td = await t.json();
     $('model').value = sd.llm_model || '';
     $('baseUrl').value = sd.llm_base_url || '';
+    $('openAccess').checked = !!sd.open_access;
     $('apiKey').placeholder = sd.llm_api_key_set ? 'current: '+sd.llm_api_key+' (leave blank to keep)' : 'sk-…';
     const tb = document.querySelector('#tenantTable tbody');
     tb.innerHTML = '';
@@ -105,7 +110,8 @@ async function loadAll(){
 
 async function saveSettings(){
   const body = { llm_model: $('model').value.trim()||null,
-                 llm_base_url: $('baseUrl').value.trim()||null };
+                 llm_base_url: $('baseUrl').value.trim()||null,
+                 open_access: $('openAccess').checked };
   if($('apiKey').value.trim()) body.llm_api_key = $('apiKey').value.trim();
   const r = await fetch('/api/admin/settings',{method:'POST',headers:{...H(),'Content-Type':'application/json'},body:JSON.stringify(body)});
   msg(r.ok ? 'Settings saved.' : 'Failed: '+(await r.json()).detail);

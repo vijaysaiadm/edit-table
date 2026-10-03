@@ -10,7 +10,17 @@ from .models import AnalysisResult
 def render_report(result: AnalysisResult) -> str:
     b = result.brief
     L: list[str] = []
-    add = L.append
+
+    def add(item: object) -> None:
+        # models sometimes return lists/dicts for scalar fields — never crash the report
+        if isinstance(item, str):
+            L.append(item)
+        elif isinstance(item, (list, tuple)):
+            L.append("; ".join(str(x) for x in item))
+        elif isinstance(item, dict):
+            L.append(", ".join(f"{k}: {v}" for k, v in item.items()))
+        else:
+            L.append(str(item))
 
     add(f"# EDIT ANALYSIS — {result.screenplay_title}")
     add("")
@@ -37,7 +47,10 @@ def render_report(result: AnalysisResult) -> str:
     add("| Position (%) | Energy (0-100) | Beat |")
     add("|---|---|---|")
     for pt in result.emotional_graph:
-        add(f"| {pt.get('position_pct', '?')} | {pt.get('energy', '?')} | {pt.get('label', '')} |")
+        if isinstance(pt, dict):
+            add(f"| {pt.get('position_pct', '?')} | {pt.get('energy', '?')} | {pt.get('label', '')} |")
+        else:
+            add(f"| ? | ? | {pt} |")
     add("")
 
     # K–L: runtime & repetition
@@ -96,6 +109,8 @@ def render_report(result: AnalysisResult) -> str:
         add("| Section | BPM | Start | Build | Drop | Silence | Note |")
         add("|---|---|---|---|---|---|---|")
         for m in bgm.payload.get("bgm_map", []):
+            if not isinstance(m, dict):
+                m = {"section": str(m)}
             add(f"| {m.get('section', '')} | {m.get('tempo_bpm', '')} | {m.get('bgm_start', '')} "
                 f"| {m.get('bgm_build', '')} | {m.get('bgm_drop', '')} | {m.get('silence', '')} "
                 f"| {m.get('note', '')} |")
@@ -119,8 +134,10 @@ def render_report(result: AnalysisResult) -> str:
         add("## Character arcs")
         add("")
         for c in chars.payload.get("characters", []):
+            if not isinstance(c, dict):
+                c = {"name": str(c)}
             add(f"- **{c.get('name')}** — {c.get('arc')}")
-            for mb in c.get("missing_beats", []):
+            for mb in c.get("missing_beats", []) or []:
                 add(f"  - Missing beat: {mb}")
         add("")
 

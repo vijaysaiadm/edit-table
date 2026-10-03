@@ -39,7 +39,7 @@
   <div class="card">
     <label>Your tenant access token (X-API-Key)</label>
     <input type="password" id="token" placeholder="tok_…" style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
-    <small style="color:var(--dim)">Ask your admin for a token. Saved only in this browser.</small>
+    <small style="color:var(--dim)">Leave blank if your server has open access enabled — otherwise ask your admin for a token. Saved only in this browser.</small>
     <label>Screenplays (.txt / .pdf / .fountain) — select as many as you want</label>
     <input type="file" id="file" multiple accept=".txt,.md,.pdf,.fountain">
     <div id="fileList" style="margin:6px 0;font-size:12px;color:var(--dim)"></div>
@@ -88,7 +88,7 @@ async function analyze(){
   try{
     let resp;
     const token = tokenEl.value.trim();
-    if(!token){ statusEl.textContent='Enter your tenant access token first.'; btn.disabled=false; return; }
+    const headers = token ? {'X-API-Key':token} : {};
     const fs=[...document.getElementById('file').files];
     const stage=document.getElementById('stage').value;
     const rt=document.getElementById('runtime').value;
@@ -98,7 +98,7 @@ async function analyze(){
       fd.append('stage',stage);
       if(rt) fd.append('target_runtime',rt);
       statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}`;
-      resp=await fetch('/api/analyze-files',{method:'POST',headers:{'X-API-Key':token},body:fd});
+      resp=await fetch('/api/analyze-files',{method:'POST',headers,body:fd});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       let html='';
@@ -114,7 +114,7 @@ async function analyze(){
     } else {
       const text=document.getElementById('text').value;
       if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose file(s) first.'; btn.disabled=false; return; }
-      resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
+      resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json',...headers},
         body:JSON.stringify({screenplay_text:text, stage, target_runtime: rt?+rt:null})});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);

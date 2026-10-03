@@ -48,12 +48,19 @@ cooperating agents and reconciled by a lead agent.
 Every worker judges against the lead's *shared brief*, so scene verdicts stay globally coherent.
 A `--stage 1` solo mode runs the classic single-agent pipeline for comparison.
 
-## Multi-tenancy
+## Multi-tenancy & access modes
 
-- **Editor persona is generic** — agents serve whichever filmmaker/studio submitted the script,
-  and mirror the submitter's language (Telugu/Tanglish/Hindi/English).
-- **Tenants are managed with `edit-table tenant`** and stored in `tenants.json`
-  (gitignored — copy `tenants.example.json` to start):
+**Just want you and your team to use it without tokens? Enable OPEN ACCESS** in the admin
+page ("Open access" checkbox): anyone can analyze immediately, everyone shares the server
+default key, and concurrent users aren't blocked. Turn it off later when you onboard
+tenants who need separate keys/billing.
+
+- **Open access ON** → no token needed; valid tenant tokens still work (tenants with their
+  own key are billed to that key)
+- **Open access OFF** → every user needs a tenant token (`tok_…`)
+
+Tenants (for separate keys/billing when you need them) are managed with `edit-table tenant`
+or the admin UI, stored in `tenants.json` (gitignored — copy `tenants.example.json` to start):
   ```bash
   cp tenants.example.json tenants.json
   edit-table tenant list

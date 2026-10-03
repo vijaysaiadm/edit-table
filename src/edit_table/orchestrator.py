@@ -52,7 +52,8 @@ async def run_analysis(path: str | Path, settings: Settings,
         system, user = stage1_full_prompt(sp.raw_text, sp.title)
         data = await llm.chat_json(system, user)
         result.final_edit_plan = data.get("final_edit_plan", "")
-        result.top_opportunities = data.get("top_opportunities", [])
+        tops = data.get("top_opportunities", [])
+        result.top_opportunities = [tops] if isinstance(tops, str) else tops
         result.emotional_graph = data.get("emotional_graph", [])
         result.final_verdicts = [FinalVerdict(**{k: v for k, v in fv.items()
                                                  if k in FinalVerdict.__dataclass_fields__})
@@ -136,7 +137,8 @@ async def run_analysis(path: str | Path, settings: Settings,
     result.final_verdicts = [FinalVerdict(**{k: v for k, v in fv.items()
                                              if k in FinalVerdict.__dataclass_fields__})
                              for fv in final.get("final_verdicts", [])]
-    result.top_opportunities = final.get("top_opportunities", [])
+    tops = final.get("top_opportunities", [])
+    result.top_opportunities = [tops] if isinstance(tops, str) else tops
     result.final_edit_plan = final.get("final_edit_plan", "")
     result.emotional_graph = final.get("emotional_graph", [])
     result.stages.append(f"reconcile: lead resolved {len(result.conflicts)} conflict(s) "
