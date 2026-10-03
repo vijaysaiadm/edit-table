@@ -167,6 +167,35 @@ examples/        sample screenplay for testing
 tests/           offline pipeline tests (mock mode)
 ```
 
+## Deploying to Vercel
+
+The app ships with a serverless adapter (`api/index.py` + `vercel.json`). Two ways to deploy:
+
+**A. Dashboard (recommended, 2 minutes)**
+1. Push this repo to GitHub (already done if you're reading this there)
+2. [vercel.com/new](https://vercel.com/new) → Import `vijaysaiadm/edit-table` → Deploy
+3. Vercel auto-detects `vercel.json`; no env vars are required to boot —
+   set the LLM key afterwards via the **Admin UI** it prints, or add `LLM_API_KEY`
+   in Project → Settings → Environment Variables and redeploy
+
+**B. CLI**
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+**Serverless constraints — read before relying on it:**
+- ⏱ **Function timeout**: full-swarm analyses (stages 1+2+3) make many LLM calls and
+  usually exceed Vercel's limits (Hobby 60 s max; Pro 300 s). On Hobby, use
+  **Stage 1 mode** in the UI, or deploy the server to a long-running host
+  (Render/Railway/Fly — `edit-table serve` works unchanged) for full swarm runs.
+- 🗂 **Ephemeral storage**: `tenants.json`, `server_settings.json` and reports live in
+  `/tmp` on Vercel and disappear between invocations/cold starts. Tenants and the
+  admin key must be recreated on each cold start, and old reports are not retrievable.
+  For durable multi-tenancy, run the server app instead — or point the code at external
+  storage by extending `paths.py`.
+
 ## Notes for real use
 
 - Quality scales with the model. Use the strongest model you can afford for the lead

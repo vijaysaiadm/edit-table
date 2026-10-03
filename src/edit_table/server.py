@@ -19,8 +19,9 @@ from pydantic import BaseModel
 
 from .config import load_settings
 from .orchestrator import run_analysis
+from .paths import data_path
 from .report import render_report, save_outputs
-from .server_settings import ServerSettingsStore
+from .server_settings import DEFAULT_SETTINGS_FILE, ServerSettingsStore
 from .tenants import DEFAULT_TENANTS_FILE, Tenant, TenantRegistry
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -31,16 +32,16 @@ admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 _running: dict[str, bool] = {}
 
 
-def create_app(tenants_file: str | Path = DEFAULT_TENANTS_FILE,
-               settings_file: str | Path = "server_settings.json") -> FastAPI:
-    registry = TenantRegistry(tenants_file)
-    store = ServerSettingsStore(settings_file)
+def create_app(tenants_file: str | Path | None = None,
+               settings_file: str | Path | None = None) -> FastAPI:
+    registry = TenantRegistry(tenants_file or data_path(DEFAULT_TENANTS_FILE))
+    store = ServerSettingsStore(settings_file or data_path(DEFAULT_SETTINGS_FILE))
     app = FastAPI(title="edit-table", version="0.3.0")
     app.state.registry, app.state.settings_store = registry, store
 
     @app.on_event("startup")
     def announce_admin() -> None:
-        print(f"\n  🔑 Admin UI: http://localhost:7100/admin  (X-Admin-Key: {store.ensure_admin_token()})\n")
+        print(f"\n  🔑 Admin UI: /admin on this server  (X-Admin-Key: {store.ensure_admin_token()})\n")
 
     def current_tenant(token: str | None = Depends(api_key_header)) -> Tenant:
         if not token:
@@ -83,7 +84,7 @@ def create_app(tenants_file: str | Path = DEFAULT_TENANTS_FILE,
             stages = (1,) if stage == "1" else (1, 2, 3)
             result = await run_analysis(tmp, settings, target_runtime=target_runtime,
                                         stages=stages)
-            md, js = save_outputs(result, "reports")
+            md, js = save_outputs(result, data_path("reports"))
             return JSONResponse({"tenant": tenant.tenant_id,
                                  "report_md": render_report(result),
                                  "report_path": str(md), "data_path": str(js),
