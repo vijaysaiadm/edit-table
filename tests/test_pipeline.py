@@ -119,7 +119,7 @@ def test_doctor_and_develop_mock():
     import asyncio
     s = Settings(mock=True)
     md = asyncio.run(run_doctor(SAMPLE, s, target_runtime=150))
-    assert isinstance(md, str) and "MOCK DOCTOR REPORT" in md
+    assert isinstance(md, str) and "MOCK DOCTOR" in md   # multi-pass: front/register/cards/runtime/ledgers
     dev = asyncio.run(run_develop("A disgraced boxer gets one last shot at the title.",
                                   s, fmt="feature"))
     assert isinstance(dev, str) and "MOCK DEVELOP REPORT" in dev

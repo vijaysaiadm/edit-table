@@ -36,6 +36,16 @@ _SPEC_RULES = """
   protection list of material that must survive any cut.
 - End with the §13 validation gates table: each gate PASS / FAIL / NOT VERIFIED with
   evidence. A failed gate is repaired or visibly marked unresolved — never hidden.
+- COMPLETENESS MANDATE (non-negotiable): the scene register lists EVERY scene as its
+  own row — never '...' placeholder rows, never grouped summaries. Every scene whose
+  disposition is not a clean KEEP gets its own intervention card. Runtime, sound/BGM,
+  continuity, and setup/payoff tables carry a row per relevant scene or item. If length
+  is tight, cut prose — never cut table rows.
+- Card format: render each intervention/repair card as an expandable block —
+  <details><summary>[EDIT-ID] — [operation] — [one-line purpose]</summary> followed by
+  a two-column field table (Where / Current passage / Remove-change / Keep-protect /
+  Why / After the edit / Proposed result / Feasibility / Risks / Dependencies /
+  Duration / Validation). Quote source passages as blockquote excerpts (> ...).
 """
 
 
@@ -91,7 +101,7 @@ Every inspected scene in every episode appears in the scene register."""
 
 FULL SCREENPLAY:
 ---
-{screenplay_text[:60000]}
+{screenplay_text[:200000]}
 ---
 
 Deliver the complete spec-compliant ANALYZE package in Markdown: intake record, then
@@ -131,6 +141,135 @@ Deliver §11 items 1–12 in Markdown. For the screenplay draft (item 9), write 
 sequences in full screenplay format and continue in numbered batches, clearly stating
 what is complete and what remains — never present a partial draft as complete."""
     return system, user
+
+
+def doctor_front_prompt(screenplay_text: str, title: str,
+                        target_runtime: float | None,
+                        holistic: bool) -> tuple[str, str]:
+    """Pass A — sections 1–4: dashboard, source-integrity, diagnosis, structure map."""
+    target = f"Target runtime: {target_runtime:.0f} minutes." if target_runtime else ""
+    scope = ("HOLISTIC multi-episode package — judge season-level arcs and promise."
+             if holistic else "single screenplay.")
+    user = f"""PROJECT: {title} — {scope} {target}
+
+FULL SCREENPLAY:
+---
+{screenplay_text[:120000]}
+---
+
+Deliver ONLY these sections of the spec §3 package, in this order, as Markdown with
+'## N. …' headings — no other sections, no preamble:
+## 1. Decision Dashboard  (priority table P0–P3 per §3.1 + strongest material to protect)
+## 2. Source-Integrity Record  (§3.2 table)
+## 3. Story and Character Diagnosis  (§3.3, evidence → problem → consequence → action, character table)
+## 4. Structure Map  (§3.4 table)"""
+    return ("[[ROLE:doctor_front]]\n" + _framework() + _SPEC_RULES), user
+
+
+def doctor_register_prompt(screenplay_text: str, title: str, scene_index: str,
+                           n_scenes: int, holistic: bool) -> tuple[str, str]:
+    """Pass B — section 5: complete scene register, EXACTLY one row per scene."""
+    ep = ("Episode-prefixed IDs (E2-S014)." if holistic else
+          "Stable IDs S001…S{n:03d}.".format(n=n_scenes))
+    user = f"""PROJECT: {title}
+
+DETECTED SCENES (exactly {n_scenes}; these are ALL the scenes — none may be skipped):
+---
+{scene_index}
+---
+
+FULL SCREENPLAY (for function/disposition judgment):
+---
+{screenplay_text[:120000]}
+---
+
+Deliver ONLY '## 5. Complete Scene Register' — ONE Markdown table per spec §4 with
+EXACTLY {n_scenes} data rows, one per detected scene above, in order. No ellipsis rows,
+no grouped summaries, no '…'. Columns: Stable ID ({ep}) | Source | Location/Time |
+Function and scene turn | Disposition | Operation | Severity/Priority | Evidence conf.
+| Timing conf. | Current/Proposed estimate | Edit ID. Every row must be complete."""
+    return ("[[ROLE:doctor_register]]\n" + _framework() + _SPEC_RULES), user
+
+
+def doctor_cards_prompt(scenes_block: str, holistic: bool) -> tuple[str, str]:
+    """Pass C — sections 6–7: one expandable intervention card per scene in the batch."""
+    user = f"""SCENES TO COVER (cover EVERY scene listed — one card each, no exceptions):
+---
+{scenes_block}
+---
+
+For EACH scene above deliver ONE expandable intervention card in Markdown:
+<details>
+<summary>[EDIT-ID] — [operation] — [one-line purpose]</summary>
+
+> source excerpt (verified passage or labeled action paraphrase)
+
+| Field | Content |
+|---|---|
+| Where | … |
+| Current passage | … |
+| Remove/change | … |
+| Keep/protect | … |
+| Why | … |
+| After the edit | retained-beat → bridge → retained-beat |
+| Proposed result | distinctly labeled proposal |
+| Feasibility | … |
+| Risks | … |
+| Dependencies | setup/payoff IDs |
+| Duration | before/removed/added/after/net + basis + confidence |
+| Validation | concrete test |
+
+If a scene is a clean KEEP, the card says so in the summary and keeps Keep/protect +
+Duration rows honest (zero saving). If a scene needs new material, add its REPAIR card
+(§6) right after, labeled NEW MATERIAL. Respect the boundary rule — exact units or
+CONDITIONAL — BOUNDARIES REQUIRE VERIFICATION."""
+    return ("[[ROLE:doctor_cards]]\n" + _framework() + _SPEC_RULES), user
+
+
+def doctor_runtime_sound_prompt(screenplay_text: str, title: str, scene_index: str,
+                                holistic: bool) -> tuple[str, str]:
+    """Pass D1 — sections 8–9: runtime model + sound/BGM map."""
+    user = f"""PROJECT: {title}
+
+DETECTED SCENES:
+---
+{scene_index}
+---
+
+FULL SCREENPLAY:
+---
+{screenplay_text[:120000]}
+---
+
+Deliver ONLY these sections, Markdown, '## N. …' headings, one table ROW PER SCENE
+(exactly as many rows as detected scenes — no ellipsis, no grouping):
+## 8. Runtime Report  (§7: scene timing evidence table with Low/Base/High per scene,
+change ledger per edit, {'episode totals + season totals' if holistic else 'project totals'})
+## 9. Sound / BGM Map  (§8: one row per scene — dramatic purpose, entry beat, build,
+drop/stop, music/silence/ambience/SFX, perspective/motif, risk; separate score from diegetic)"""
+    return ("[[ROLE:doctor_runtime]]\n" + _framework() + _SPEC_RULES), user
+
+
+def doctor_ledgers_gates_prompt(screenplay_text: str, title: str,
+                                holistic: bool) -> tuple[str, str]:
+    """Pass D2 — sections 10–13: ledgers, implementation, evidence note, validation gates."""
+    user = f"""PROJECT: {title}
+
+FULL SCREENPLAY:
+---
+{screenplay_text[:120000]}
+---
+
+Deliver ONLY these sections, Markdown, '## N. …' headings:
+## 10. Location, Continuity, Knowledge and Setup/Payoff Ledgers  (§9 — all four ledgers
+as tables; {'cross-episode entries included' if holistic else 'scene-anchored rows'})
+## 11. Implementation and Testing  (§10 — ordered pass table: verification → causality →
+rhythm → character/emotion → alternatives → sound → timed review → dependency audit;
+plus the protection list)
+## 12. Evidence Appendix  (brief — where source excerpts live, extraction caveats)
+## 13. Validation Gates  (§13 — every gate PASS / FAIL / NOT VERIFIED with evidence;
+never claim a pass without basis)"""
+    return ("[[ROLE:doctor_ledgers]]\n" + _framework() + _SPEC_RULES), user
 
 
 def revise_prompt(screenplay_text: str, instruction: str, title: str,

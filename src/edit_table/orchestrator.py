@@ -19,7 +19,10 @@ from .config import Settings
 from .llm import make_llm
 from .models import (AnalysisResult, Brief, Conflict, FinalVerdict, GenreFinding,
                      SceneAnalysis, UtilityResult)
-from .prompts.doctor import (compare_prompt, develop_prompt, doctor_prompt,
+from .prompts.doctor import (compare_prompt, develop_prompt,
+                             doctor_cards_prompt, doctor_front_prompt,
+                             doctor_ledgers_gates_prompt, doctor_prompt,
+                             doctor_register_prompt, doctor_runtime_sound_prompt,
                              revise_prompt)
 from .prompts.genre import SPECIALISTS, genre_prompt
 from .prompts.lead import lead_brief_prompt
@@ -154,14 +157,61 @@ async def run_doctor(path: str | Path, settings: Settings,
                      holistic: bool = False) -> str:
     """Deep editorial review (spec-compliant ANALYZE package) as raw Markdown.
 
-    holistic=True treats the file as a multi-episode package and produces ONE
-    consolidated season-level report (episode map, cross-episode ledgers).
+    Multi-pass generation — one giant call produces thin, lazy reports (models skip
+    scenes and truncate tables), so the package is built in focused passes and
+    assembled in spec order:
+      A front matter (§3.1–3.4)          ┐ concurrent
+      B scene register (§4)              ┘
+      C intervention cards, batched per scene, batches in parallel (§5–6)
+      D1 runtime + sound map             ┐ concurrent
+      D2 ledgers + implementation + gates(§13) ┘
+
+    holistic=True treats the file as a multi-episode package (episode-prefixed IDs,
+    season + per-episode totals, cross-episode ledgers).
     """
     llm = make_llm(settings)
     sp = load_screenplay(path, settings)
-    system, user = doctor_prompt(sp.raw_text[:240000] if holistic else sp.raw_text[:60000],
-                                 sp.title, target_runtime, holistic=holistic)
-    return await llm.chat_markdown(system, user)
+    text = sp.raw_text[:240000 if holistic else 200000]
+
+    if not sp.scenes:   # no scene structure detected → single-call fallback
+        system, user = doctor_prompt(text, sp.title, target_runtime, holistic=holistic)
+        return await llm.chat_markdown(system, user)
+
+    index = "\n".join(
+        f"S{s.number:03d} | {s.heading} | {' '.join(s.text.split())[:160]}"
+        for s in sp.scenes)
+
+    # ── Passes A + B concurrently ────────────────────────────────────────────
+    sA, uA = doctor_front_prompt(text, sp.title, target_runtime, holistic)
+    sB, uB = doctor_register_prompt(text, sp.title, index, len(sp.scenes), holistic)
+    front_md, register_md = await asyncio.gather(
+        llm.chat_markdown(sA, uA), llm.chat_markdown(sB, uB))
+    if register_md.strip() and not register_md.lstrip().startswith("## "):
+        register_md = "## 5. Complete Scene Register\n\n" + register_md
+
+    # ── Pass C: one card per scene, batched, batches in parallel ────────────
+    batches = [sp.scenes[i:i + 12] for i in range(0, len(sp.scenes), 12)]
+
+    async def cards_for(batch) -> str:
+        block = "\n\n".join(
+            f"### SCENE {sc.number:03d} — {sc.heading}\n{sc.text[:2500]}"
+            for sc in batch)
+        sC, uC = doctor_cards_prompt(block, holistic)
+        return await llm.chat_markdown(sC, uC)
+
+    card_parts = await asyncio.gather(*[cards_for(b) for b in batches])
+    cards_md = ("## 6. Detailed Intervention Cards\n\nOne expandable card per scene.\n\n"
+                + "\n\n".join(p for p in card_parts if p.strip()))
+
+    # ── Passes D1 + D2 concurrently ─────────────────────────────────────────
+    s1, u1 = doctor_runtime_sound_prompt(text, sp.title, index, holistic)
+    s2, u2 = doctor_ledgers_gates_prompt(text, sp.title, holistic)
+    runtime_md, ledgers_md = await asyncio.gather(
+        llm.chat_markdown(s1, u1), llm.chat_markdown(s2, u2))
+
+    return "\n\n".join(x for x in
+                       [front_md, register_md, cards_md, runtime_md, ledgers_md]
+                       if x and x.strip())
 
 
 async def run_develop(logline: str, settings: Settings,

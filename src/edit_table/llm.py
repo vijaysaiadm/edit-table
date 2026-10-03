@@ -49,13 +49,16 @@ class RealLLM:
         self._semaphore = asyncio.Semaphore(settings.max_concurrency)
 
     async def chat(self, system: str, user: str, json_mode: bool = False,
-                   model: str | None = None, max_retries: int = 3) -> str:
+                   model: str | None = None, max_retries: int = 3,
+                   max_tokens: int | None = None) -> str:
         kwargs: dict = {"model": model or self.s.model, "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]}
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens   # OpenRouter/provider defaults can be tiny
         delay = 2.0
         for attempt in range(max_retries):
             try:
@@ -72,8 +75,12 @@ class RealLLM:
         return _extract_json(await self.chat(system, user, json_mode=True, model=model))
 
     async def chat_markdown(self, system: str, user: str, model: str | None = None) -> str:
-        """Free-form markdown output (deep review / development modes)."""
-        return await self.chat(system, user, json_mode=False, model=model)
+        """Free-form markdown output (deep review / development modes).
+
+        Reports are long documents: 16k output tokens so the model can cover every
+        scene instead of compressing to fit a small provider default."""
+        return await self.chat(system, user, json_mode=False, model=model,
+                               max_tokens=16384)
 
 
 class MockLLM:
