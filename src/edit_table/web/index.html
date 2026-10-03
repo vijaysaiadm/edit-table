@@ -83,6 +83,9 @@
     <textarea id="text" placeholder="INT. COFFEE SHOP - DAY&#10;&#10;RAJU enters, scanning the room..."></textarea>
     <label>Target runtime (minutes, optional)</label>
     <input type="number" id="runtime" min="30" max="400" placeholder="150">
+    <label>Model (optional — OpenRouter model id)</label>
+    <input type="text" id="model" placeholder="openai/gpt-4o — leave blank for server default" style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
+    <small style="color:var(--dim)">Any model available on your OpenRouter key, e.g. openai/gpt-4o, anthropic/claude-sonnet-4, google/gemini-2.5-pro. Saved only in this browser.</small>
     <label>Mode</label>
     <select id="stage" onchange="modeHint()"><option value="full">Full swarm (stages 1+2+3)</option>
       <option value="1">Stage 1 — solo single agent</option>
@@ -120,6 +123,9 @@ const statusEl = document.getElementById('status');
 const tokenEl = document.getElementById('token');
 tokenEl.value = localStorage.getItem('me_token') || '';
 tokenEl.addEventListener('change', () => localStorage.setItem('me_token', tokenEl.value.trim()));
+const modelEl = document.getElementById('model');
+modelEl.value = localStorage.getItem('me_model') || '';
+modelEl.addEventListener('change', () => localStorage.setItem('me_model', modelEl.value.trim()));
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
 /* ── color coding: spec §4 written color labels + edit verdicts + P0–P3 + confidence ── */
 const BADGE_RX=/🟢|🟠|🔴|🔵|⚪|🟡|\b(P0|P1|P2|P3|GREEN|AMBER|RED|BLUE|GRAY|GREY|YELLOW|KEEP|PROTECT|RETAIN|REFINE|MAJOR REWORK|OPTIONAL TEST|UNASSESSABLE|NOT VERIFIED|CONDITIONAL|TRIM|MERGE|RESTRUCTURE|MOVE|REMOVE|ADD|EXPAND|PASS|FAIL|HIGH|MEDIUM|LOW)\b/g;
@@ -169,7 +175,7 @@ let lastReport='', lastReportHtml='', lastTitle='', qaLog=[], reportUrl=null;
 const MODE_HINTS={
   full:'Attach files or paste a screenplay.',
   1:'Attach files or paste a screenplay — one agent does everything.',
-  doctor:'Attach files or paste a screenplay — full spec-compliant ANALYZE package with edit cards and validation gates.',
+  doctor:'Attach one screenplay — or select MULTIPLE episode files for ONE holistic season-level report (episode map, cross-episode continuity, edit cards).',
   develop:'Paste your logline in the text box (no files).',
   revise:'Attach the screenplay as a FILE, and put the rewrite request in the text box.',
   compare:'Select exactly 2 files — first is version A, second is version B.'};
@@ -341,6 +347,7 @@ async function analyze(){
     const special={doctor:1,develop:1,revise:1,compare:1};
     const mode=special[stage]?stage:'analyze';
     const rt=document.getElementById('runtime').value;
+    const modelV=modelEl.value.trim()||null;
     const pastedText=document.getElementById('text').value;
     if(fs.length){
       if(mode==='develop'){ statusEl.textContent='Develop mode takes a pasted logline — remove the file selection and paste your logline in the text box.'; btn.disabled=false; return; }
@@ -351,13 +358,15 @@ async function analyze(){
       fd.append('stage',stage);
       fd.append('mode',mode);
       if(mode==='revise') fd.append('instructions',pastedText);
+      if(modelV) fd.append('model',modelV);
       if(rt&&mode!=='compare') fd.append('target_runtime',rt);
-      statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}`;
+      statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}${mode==='doctor'&&fs.length>1?' — holistic (one report across all episodes)':''}`;
       resp=await fetch('/api/analyze-files',{method:'POST',headers,body:fd});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
-      if(data.report_md!==undefined){   // single-report modes (compare / revise)
-        const t=fs.length===2 ? `${fs[0].name} vs ${fs[1].name}` : fs[0].name;
+      if(data.report_md!==undefined){   // single-report modes (compare / revise / holistic)
+        const t=mode==='compare'&&fs.length===2 ? `${fs[0].name} vs ${fs[1].name}`
+          : (mode==='doctor'&&fs.length>1 ? `Holistic review (${fs.length} episodes)` : fs[0].name);
         setReport(mdToHtml(data.report_md), data.report_md, t);
         statusEl.textContent='Saved: '+data.report_path;
         btn.disabled=false; return;
@@ -380,7 +389,7 @@ async function analyze(){
       if(mode==='revise'){ statusEl.textContent='Revise mode: attach the screenplay as a file and put the rewrite request in the text box.'; btn.disabled=false; return; }
       if(mode==='compare'){ statusEl.textContent='Compare mode: select exactly 2 files (version A and version B).'; btn.disabled=false; return; }
       resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json',...headers},
-        body:JSON.stringify({screenplay_text:text, stage, mode, target_runtime: rt?+rt:null})});
+        body:JSON.stringify({screenplay_text:text, stage, mode, target_runtime: rt?+rt:null, model: modelV})});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       setReport(mdToHtml(data.report_md), data.report_md, data.report_path);

@@ -160,6 +160,18 @@ first is version A, second is version B). A hint under the dropdown tells you wh
 mode expects. All prompt frameworks load verbatim from `prompts-source/` — edit those
 files to tune the reviewer's behaviour.
 
+**Holistic multi-episode review**: in Deep editorial review mode, selecting MULTIPLE
+files no longer runs them one by one — all episodes are read in ONE pass and produce a
+single consolidated report: season spine, sequence/episode map, cross-episode
+setup/payoff and continuity ledgers, scene/edit IDs prefixed by episode (E2-S014), and
+per-episode plus season runtime totals. This is the mode that produces the benchmark-
+style "Episodes 1–5 Holistic Report".
+
+**Model picker**: the Model field on the main page lets any user override the LLM per
+request with any model id available on the server's OpenRouter key (e.g.
+`openai/gpt-4o`, `anthropic/claude-sonnet-4`, `google/gemini-2.5-pro`). Blank = server
+default. Saved only in the browser.
+
 Every deliverable follows `prompts-source/SCREEN_EDITOR_OUTPUT_SPEC.md`, the output
 contract: evidence labels (SOURCE FACT / INTERPRETATION / PROPOSAL / UNKNOWN) with
 source anchors, executable intervention cards with stable EDIT IDs and the boundary

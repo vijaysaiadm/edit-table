@@ -50,13 +50,41 @@ def _framework() -> str:
 
 
 def doctor_prompt(screenplay_text: str, title: str,
-                  target_runtime: float | None) -> tuple[str, str]:
-    """ANALYZE mode: evidence-based diagnosis + executable edit plan (spec §3 package)."""
+                  target_runtime: float | None,
+                  holistic: bool = False) -> tuple[str, str]:
+    """ANALYZE mode: evidence-based diagnosis + executable edit plan (spec §3 package).
+
+    holistic=True: the text is a MULTI-EPISODE package (episodes separated by labeled
+    markers) and the report must cover the whole season — spine, episode map,
+    cross-episode continuity — not per-episode silos.
+    """
     system = ("[[ROLE:doctor]]\n" + _framework()
               + _SPEC_RULES
               + "\nThis run's mode: ANALYZE (script) per spec §1 and §3.")
     target = f"Target runtime: {target_runtime:.0f} minutes." if target_runtime else ""
-    user = f"""INTAKE RECORD (pre-filled fields; label your assumptions for the rest):
+    if holistic:
+        system += ("\nThis is a HOLISTIC multi-episode run: treat the package as ONE series. "
+                   "Deliver a single consolidated report — season spine, sequence/episode map, "
+                   "cross-episode setup/payoff and continuity ledgers, and scene/edit IDs that "
+                   "carry their episode label (e.g. E2-S014). Never reset the analysis per file.")
+        user = f"""INTAKE RECORD (pre-filled fields; label your assumptions for the rest):
+- Project title: {title}
+- Review mode: ANALYZE (script) — HOLISTIC multi-episode package
+- {target}
+
+MULTI-EPISODE PACKAGE (each episode starts with an ===== EPISODE n: <filename> ===== marker;
+treat every episode as part of one continuous series):
+---
+{screenplay_text[:240000]}
+---
+
+Deliver the complete spec-compliant HOLISTIC report in Markdown: intake record, then
+§3 items 1–14 in order as ONE consolidated package (season-level decision dashboard,
+episode map, scene register spanning all episodes with episode-prefixed IDs, EDIT cards,
+runtime report with per-episode AND season totals), then the §13 validation gates table.
+Every inspected scene in every episode appears in the scene register."""
+    else:
+        user = f"""INTAKE RECORD (pre-filled fields; label your assumptions for the rest):
 - Project title: {title}
 - Review mode: ANALYZE (script)
 - {target}

@@ -150,11 +150,17 @@ async def run_analysis(path: str | Path, settings: Settings,
 
 
 async def run_doctor(path: str | Path, settings: Settings,
-                     target_runtime: float | None = None) -> str:
-    """Deep editorial review (spec-compliant ANALYZE package) as raw Markdown."""
+                     target_runtime: float | None = None,
+                     holistic: bool = False) -> str:
+    """Deep editorial review (spec-compliant ANALYZE package) as raw Markdown.
+
+    holistic=True treats the file as a multi-episode package and produces ONE
+    consolidated season-level report (episode map, cross-episode ledgers).
+    """
     llm = make_llm(settings)
     sp = load_screenplay(path, settings)
-    system, user = doctor_prompt(sp.raw_text[:60000], sp.title, target_runtime)
+    system, user = doctor_prompt(sp.raw_text[:240000] if holistic else sp.raw_text[:60000],
+                                 sp.title, target_runtime, holistic=holistic)
     return await llm.chat_markdown(system, user)
 
 
