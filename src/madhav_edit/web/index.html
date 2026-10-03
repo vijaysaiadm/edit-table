@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>madhav-edit — Agentic Screenplay Analysis</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --ink:#e8e9ec; --dim:#9aa0ab; --accent:#e8b339; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { padding:20px 28px; border-bottom:1px solid #262a33; }
+  header h1 { font-size:20px; } header h1 span { color:var(--accent); }
+  header p { color:var(--dim); font-size:13px; margin-top:4px; }
+  main { display:grid; grid-template-columns:380px 1fr; gap:20px; padding:20px 28px; max-width:1500px; }
+  @media (max-width:900px){ main{ grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:18px; }
+  label { display:block; font-size:12px; color:var(--dim); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
+  textarea { width:100%; height:300px; background:#0c0e12; color:var(--ink); border:1px solid #2c313c;
+             border-radius:8px; padding:10px; font-family:ui-monospace,Menlo,monospace; font-size:12px; resize:vertical; }
+  input[type=file], input[type=number], select { width:100%; background:#0c0e12; color:var(--ink);
+             border:1px solid #2c313c; border-radius:8px; padding:8px; }
+  button { margin-top:14px; width:100%; padding:11px; background:var(--accent); color:#111; border:0;
+           border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:wait; }
+  #report { white-space:pre-wrap; font-size:13px; line-height:1.6; max-height:none; }
+  #report h1,#report h2 { color:var(--accent); margin:18px 0 8px; }
+  #report table { border-collapse:collapse; margin:8px 0; font-size:12px; }
+  #report th,#report td { border:1px solid #2c313c; padding:5px 9px; text-align:left; }
+  #status { font-size:12px; color:var(--dim); margin-top:10px; white-space:pre-line; }
+  .pill { display:inline-block; background:#232833; border-radius:20px; padding:2px 10px; font-size:11px; margin:2px; color:var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 madhav<span>-edit</span></h1>
+  <p>Agentic screenplay analysis · lead agent → parallel scene workers → genre specialists → utility workers → lead reconciliation</p>
+</header>
+<main>
+  <div class="card">
+    <label>Screenplay (.txt / .pdf / .fountain)</label>
+    <input type="file" id="file">
+    <label>— or paste screenplay text —</label>
+    <textarea id="text" placeholder="INT. COFFEE SHOP - DAY&#10;&#10;RAJU enters, scanning the room..."></textarea>
+    <label>Target runtime (minutes, optional)</label>
+    <input type="number" id="runtime" min="30" max="400" placeholder="150">
+    <label>Mode</label>
+    <select id="stage"><option value="full">Full swarm (stages 1+2+3)</option>
+      <option value="1">Stage 1 — solo single agent</option></select>
+    <button id="go" onclick="analyze()">Analyze 🎞️</button>
+    <div id="status"></div>
+  </div>
+  <div class="card" id="report"><em style="color:var(--dim)">The A–P edit report will appear here.</em></div>
+</main>
+<script>
+const statusEl = document.getElementById('status');
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
+  const lines = md.split('\n'); let html='', inTable=false;
+  for(const ln of lines){
+    if(ln.startsWith('|')){ const cells=ln.split('|').slice(1,-1).map(c=>c.trim());
+      if(!inTable){html+='<table>'; inTable=true;}
+      if(cells.every(c=>/^[-: ]+$/.test(c))) continue;
+      const tag = html.endsWith('<table>')||html.endsWith('</tr><tr>') ? 'th':'td';
+      html+='<tr>'+cells.map(c=>'<'+tag+'>'+c+'</'+tag+'>').join('')+'</tr>'; continue; }
+    if(inTable){html+='</table>'; inTable=false;}
+    if(ln.startsWith('# ')) html+='<h1>'+esc(ln.slice(2))+'</h1>';
+    else if(ln.startsWith('## ')) html+='<h2>'+esc(ln.slice(3))+'</h2>';
+    else if(ln.startsWith('- ')) html+='• '+esc(ln.slice(2))+'<br>';
+    else if(/^\d+\. /.test(ln)) html+=esc(ln)+'<br>';
+    else if(ln.trim()==='') html+='<br>';
+    else html+=esc(ln)+'<br>';
+  }
+  return html;
+}
+async function analyze(){
+  const btn=document.getElementById('go'); btn.disabled=true;
+  statusEl.textContent='Running pipeline…';
+  try{
+    let resp;
+    const f=document.getElementById('file').files[0];
+    const stage=document.getElementById('stage').value;
+    const rt=document.getElementById('runtime').value;
+    if(f){ const fd=new FormData(); fd.append('file',f); fd.append('stage',stage);
+      if(rt) fd.append('target_runtime',rt);
+      resp=await fetch('/api/analyze-file',{method:'POST',body:fd});
+    } else {
+      const text=document.getElementById('text').value;
+      if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose a file first.'; btn.disabled=false; return; }
+      resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({screenplay_text:text, stage, target_runtime: rt?+rt:null})});
+    }
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.detail||resp.statusText);
+    document.getElementById('report').innerHTML=mdToHtml(data.report_md);
+    statusEl.textContent=data.stages.join('\n')+'\nSaved: '+data.report_path;
+  }catch(e){ statusEl.textContent='Error: '+e.message; }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>

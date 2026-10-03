@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Secrets — never commit your API key
+.env
+
+# Reports & caches
+reports/
+.cache/
+*.log
+
+# OS
+.DS_Store
