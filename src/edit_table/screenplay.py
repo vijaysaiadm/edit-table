@@ -26,7 +26,7 @@ SUPPORTED = {".txt", ".md", ".pdf", ".fountain"}
 def load_screenplay(path: str | Path, settings: Settings) -> Screenplay:
     path = Path(path)
     if path.suffix.lower() not in SUPPORTED:
-        raise SystemExit(f"Unsupported format {path.suffix}. Use: {sorted(SUPPORTED)}")
+        raise ValueError(f"Unsupported format {path.suffix}. Use: {sorted(SUPPORTED)}")
     if path.suffix.lower() == ".pdf":
         from pypdf import PdfReader
         text = "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)

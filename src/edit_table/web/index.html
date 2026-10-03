@@ -40,9 +40,11 @@
     <label>Your tenant access token (X-API-Key)</label>
     <input type="password" id="token" placeholder="tok_…" style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
     <small style="color:var(--dim)">Ask your admin for a token. Saved only in this browser.</small>
-    <label>Screenplay (.txt / .pdf / .fountain)</label>
-    <input type="file" id="file">
-    <label>— or paste screenplay text —</label>
+    <label>Screenplays (.txt / .pdf / .fountain) — select as many as you want</label>
+    <input type="file" id="file" multiple accept=".txt,.md,.pdf,.fountain">
+    <div id="fileList" style="margin:6px 0;font-size:12px;color:var(--dim)"></div>
+    <small style="color:var(--dim)">No size limit — files are streamed to the server. A full analysis runs per file, one after another.</small>
+    <label>— or paste one screenplay's text —</label>
     <textarea id="text" placeholder="INT. COFFEE SHOP - DAY&#10;&#10;RAJU enters, scanning the room..."></textarea>
     <label>Target runtime (minutes, optional)</label>
     <input type="number" id="runtime" min="30" max="400" placeholder="150">
@@ -80,30 +82,54 @@ function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
 }
 async function analyze(){
   const btn=document.getElementById('go'); btn.disabled=true;
+  const reportEl=document.getElementById('report');
+  const fmtSize = n => n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.round(n/1024)+' KB';
   statusEl.textContent='Running pipeline…';
   try{
     let resp;
     const token = tokenEl.value.trim();
     if(!token){ statusEl.textContent='Enter your tenant access token first.'; btn.disabled=false; return; }
-    const f=document.getElementById('file').files[0];
+    const fs=[...document.getElementById('file').files];
     const stage=document.getElementById('stage').value;
     const rt=document.getElementById('runtime').value;
-    if(f){ const fd=new FormData(); fd.append('file',f); fd.append('stage',stage);
+    if(fs.length){
+      const fd=new FormData();
+      fs.forEach(f=>fd.append('files',f));
+      fd.append('stage',stage);
       if(rt) fd.append('target_runtime',rt);
-      resp=await fetch('/api/analyze-file',{method:'POST',headers:{'X-API-Key':token},body:fd});
+      statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}`;
+      resp=await fetch('/api/analyze-files',{method:'POST',headers:{'X-API-Key':token},body:fd});
+      const data=await resp.json();
+      if(!resp.ok) throw new Error(data.detail||resp.statusText);
+      let html='';
+      data.results.forEach((r,i)=>{
+        html+=`<div class="pill">${i+1} / ${data.results.length}</div>`;
+        if(r.error){ html+=`<h2>❌ ${esc(r.filename)}</h2><p>${esc(r.error)}</p>`; }
+        else { html+=`<h2>✅ ${esc(r.filename)}</h2>`+mdToHtml(r.report_md); }
+        html+='<hr style="border-color:#2c313c;margin:28px 0">';
+      });
+      reportEl.innerHTML=html;
+      const okN=data.results.filter(r=>!r.error).length;
+      statusEl.textContent=`Done: ${okN}/${data.results.length} succeeded.`;
     } else {
       const text=document.getElementById('text').value;
-      if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose a file first.'; btn.disabled=false; return; }
+      if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose file(s) first.'; btn.disabled=false; return; }
       resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
         body:JSON.stringify({screenplay_text:text, stage, target_runtime: rt?+rt:null})});
+      const data=await resp.json();
+      if(!resp.ok) throw new Error(data.detail||resp.statusText);
+      reportEl.innerHTML=mdToHtml(data.report_md);
+      statusEl.textContent=data.stages.join('\n')+'\nSaved: '+data.report_path;
     }
-    const data=await resp.json();
-    if(!resp.ok) throw new Error(data.detail||resp.statusText);
-    document.getElementById('report').innerHTML=mdToHtml(data.report_md);
-    statusEl.textContent=data.stages.join('\n')+'\nSaved: '+data.report_path;
   }catch(e){ statusEl.textContent='Error: '+e.message; }
   btn.disabled=false;
 }
+document.getElementById('file').addEventListener('change', e=>{
+  const fs=[...e.target.files];
+  document.getElementById('fileList').innerHTML = fs.length
+    ? fs.map(f=>`<span class="pill">${esc(f.name)} · ${fmtSize(f.size)}</span>`).join('')
+    : '';
+});
 </script>
 </body>
 </html>

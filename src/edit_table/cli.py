@@ -61,7 +61,10 @@ def main(argv: list[str] | None = None) -> None:
         if args.tenant != "default" and tenant is None:
             sys.exit(f"Unknown tenant '{args.tenant}'. Known: "
                      f"{[t.tenant_id for t in registry.list()] or 'none'}")
-        settings = load_settings(mock=args.mock, tenant=tenant)
+        try:
+            settings = load_settings(mock=args.mock, tenant=tenant)
+        except RuntimeError as e:
+            sys.exit(str(e))
         settings.tenant_id = args.tenant  # keep the ID even for the default tenant
         stages = (1,) if args.stage == "1" else (1, 2, 3)
         print(f"Analyzing {args.screenplay} as tenant '{args.tenant}' "

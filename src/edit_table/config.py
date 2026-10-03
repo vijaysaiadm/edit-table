@@ -36,10 +36,10 @@ class Settings:
         if self.mock:
             return
         if not self.api_key:
-            raise SystemExit(
+            raise RuntimeError(
                 f"LLM_API_KEY is not set for tenant '{self.tenant_id}'.\n"
-                "Either give the tenant an llm_api_key in tenants.json, or set a server\n"
-                "default: cp .env.example to .env and add the key (never commit it)."
+                "Either give the tenant an llm_api_key in tenants.json, set a server\n"
+                "default via the admin UI, or add LLM_API_KEY to .env (never commit it)."
             )
 
 

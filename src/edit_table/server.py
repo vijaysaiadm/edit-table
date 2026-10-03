@@ -9,6 +9,7 @@ LLM credential priority: tenant key > admin-set server default > env/.env.
 """
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -30,6 +31,29 @@ admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 
 # per-tenant single-flight guards: tenants never see or block each other
 _running: dict[str, bool] = {}
+
+
+# Pydantic models must live at module scope: with postponed annotation evaluation,
+# FastAPI cannot resolve locally-defined classes and misparses them as query params.
+class AnalyzeRequest(BaseModel):
+    screenplay_text: str
+    title: str = "Untitled Screenplay"
+    target_runtime: float | None = None
+    stage: str = "full"
+
+
+class SettingsRequest(BaseModel):
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+    llm_base_url: str | None = None
+
+
+class TenantCreate(BaseModel):
+    tenant_id: str
+    display_name: str
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+    llm_base_url: str | None = None
 
 
 def create_app(tenants_file: str | Path | None = None,
@@ -54,12 +78,6 @@ def create_app(tenants_file: str | Path | None = None,
     def admin(token: str | None = Depends(admin_key_header)) -> None:
         if not store.verify_admin(token):
             raise HTTPException(401, "Missing or invalid X-Admin-Key header.")
-
-    class AnalyzeRequest(BaseModel):
-        screenplay_text: str
-        title: str = "Untitled Screenplay"
-        target_runtime: float | None = None
-        stage: str = "full"
 
     @app.get("/")
     def index() -> FileResponse:
@@ -106,18 +124,40 @@ def create_app(tenants_file: str | Path | None = None,
                            target_runtime: float | None = Form(None),
                            stage: str = Form("full"),
                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
-        suffix = Path(file.filename or "script.txt").suffix or ".txt"
-        with tempfile.NamedTemporaryFile("wb", suffix=suffix, delete=False) as f:
-            f.write(await file.read())
-            tmp = f.name
+        tmp = await _spool(file)
         return await _run(tenant, tmp, target_runtime, stage)
 
-    # ── admin: server default LLM settings ──────────────────────────────────
-    class SettingsRequest(BaseModel):
-        llm_api_key: str | None = None
-        llm_model: str | None = None
-        llm_base_url: str | None = None
+    async def _spool(file: UploadFile) -> str:
+        """Stream upload to a temp file in 1 MB chunks — no in-memory size limit."""
+        suffix = Path(file.filename or "script.txt").suffix or ".txt"
+        with tempfile.NamedTemporaryFile("wb", suffix=suffix, delete=False) as f:
+            while chunk := await file.read(1024 * 1024):
+                f.write(chunk)
+        return f.name
 
+    @app.post("/api/analyze-files")
+    async def analyze_files(files: list[UploadFile] = File(...),
+                            target_runtime: float | None = Form(None),
+                            stage: str = Form("full"),
+                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
+        """Analyze many attachments in one request, sequentially, per-tenant guard held
+        for the whole batch. Returns one result per file (failures don't stop the rest)."""
+        results = []
+        for file in files:
+            name = file.filename or "script.txt"
+            try:
+                tmp = await _spool(file)
+                r = await _run(tenant, tmp, target_runtime, stage)
+                payload = json.loads(r.body.decode())
+                payload["filename"] = name
+                results.append(payload)
+            except HTTPException as e:
+                results.append({"filename": name, "error": e.detail})
+            except Exception as e:  # one bad file shouldn't kill the batch
+                results.append({"filename": name, "error": f"{type(e).__name__}: {e}"})
+        return JSONResponse({"tenant": tenant.tenant_id, "results": results})
+
+    # ── admin: server default LLM settings ──────────────────────────────────
     @app.get("/api/admin/settings")
     def get_settings(_: None = Depends(admin)) -> dict:
         data = store.get()
@@ -132,13 +172,6 @@ def create_app(tenants_file: str | Path | None = None,
         return {"ok": True}
 
     # ── admin: tenant management ────────────────────────────────────────────
-    class TenantCreate(BaseModel):
-        tenant_id: str
-        display_name: str
-        llm_api_key: str | None = None
-        llm_model: str | None = None
-        llm_base_url: str | None = None
-
     @app.get("/api/admin/tenants")
     def list_tenants(_: None = Depends(admin)) -> dict:
         return {"tenants": [{
