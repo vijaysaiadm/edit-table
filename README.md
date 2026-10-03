@@ -168,17 +168,24 @@ Operation / Priority kept separate in scene registers, runtime arithmetic in sec
 with low/base/high scenarios, and a final 13-gate validation table (PASS / FAIL /
 NOT VERIFIED with evidence).
 
-After every run, a toolbar appears under the input card:
+After every run, a **toolbar** appears above the report:
 
-- **⬇ Download report (.md)** — saves the full report (plus any follow-up Q&A) as a
-  Markdown file.
-- **Ask about this report** — follow-up Q&A on the report (`POST /api/ask`). Interrogate
-  any section ("why is scene 12 AMBER?"), or ask for **dynamic expansion** ("expand the
-  BGM map", "turn section D into a full scene-by-scene table with timings") — the answer
-  arrives as Markdown grounded in the report, and multi-turn context is kept client-side
-  (the last 10 turns are resent), so nothing report-specific persists server-side.
-- **Search report** — highlights every match (scene labels, EDIT IDs, characters) with
-  a live match count.
+- **Open report ↗** — the full report as a rich, color-coded, print-ready HTML page in a
+  new tab (same content as below, styled for reading and sharing).
+- **⬇ Download HTML** — saves that same self-contained HTML file (no dependencies, opens
+  anywhere, prints cleanly).
+- **🖨 Print** — prints the report directly (or Save as PDF from the print dialog).
+- **Ask ▾** — collapsible follow-up Q&A on the report (`POST /api/ask`). Interrogate any
+  section ("why is scene 12 AMBER?"), or ask for **dynamic expansion** ("expand the BGM
+  map", "turn section D into a full scene-by-scene table with timings") — answers arrive
+  as color-coded Markdown grounded in the report; multi-turn context is kept client-side
+  (last 10 turns resent), so nothing report-specific persists server-side.
+- **Search** — live highlight with match count and jump to first match.
+
+The inline report is **color-coded per the spec's color language**: 🟢 KEEP/PROTECT/RETAIN,
+🟠 REFINE, 🔴 MAJOR REWORK, 🔵 OPTIONAL TEST, ⚪ UNASSESSABLE, plus P0–P3 priority badges
+(red/orange/yellow/grey), HIGH/MEDIUM/LOW confidence, and PASS/FAIL/NOT VERIFIED gate
+results — scene-register rows are tinted by their dominant verdict.
 
 Outputs land in `reports/` as a Markdown edit report (sections A–P from the master prompt)
 plus the full JSON data for downstream tooling.

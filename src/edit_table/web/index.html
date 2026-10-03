@@ -8,36 +8,66 @@
   :root { --bg:#0f1115; --card:#171a21; --ink:#e8e9ec; --dim:#9aa0ab; --accent:#e8b339; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--ink); font-family:-apple-system,"Segoe UI",Roboto,sans-serif; }
-  header { padding:20px 28px; border-bottom:1px solid #262a33; }
+  header { padding:16px 28px; border-bottom:1px solid #262a33; }
   header h1 { font-size:20px; } header h1 span { color:var(--accent); }
   header p { color:var(--dim); font-size:13px; margin-top:4px; }
-  main { display:grid; grid-template-columns:380px 1fr; gap:20px; padding:20px 28px; max-width:1500px; }
-  @media (max-width:900px){ main{ grid-template-columns:1fr; } }
+  main { display:grid; grid-template-columns:360px 1fr; gap:20px; padding:20px 28px;
+          height:calc(100vh - 70px); max-width:1600px; }
+  @media (max-width:760px){ main{ grid-template-columns:1fr; height:auto; } }
   .card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:18px; }
+  #inputCard { overflow:auto; }
+  #reportCol { display:flex; flex-direction:column; gap:14px; min-height:0; }
   label { display:block; font-size:12px; color:var(--dim); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
-  textarea { width:100%; height:300px; background:#0c0e12; color:var(--ink); border:1px solid #2c313c;
+  textarea { width:100%; height:220px; background:#0c0e12; color:var(--ink); border:1px solid #2c313c;
              border-radius:8px; padding:10px; font-family:ui-monospace,Menlo,monospace; font-size:12px; resize:vertical; }
   input[type=file], input[type=number], select { width:100%; background:#0c0e12; color:var(--ink);
              border:1px solid #2c313c; border-radius:8px; padding:8px; }
+  input[type=text] { background:#0c0e12; color:var(--ink); border:1px solid #2c313c; border-radius:8px; padding:8px; }
   button { margin-top:14px; width:100%; padding:11px; background:var(--accent); color:#111; border:0;
            border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; }
   button:disabled { opacity:.5; cursor:wait; }
-  #report { white-space:pre-wrap; font-size:13px; line-height:1.6; max-height:none; }
-  #report h1,#report h2 { color:var(--accent); margin:18px 0 8px; }
-  #report table { border-collapse:collapse; margin:8px 0; font-size:12px; }
-  #report th,#report td { border:1px solid #2c313c; padding:5px 9px; text-align:left; }
   #status { font-size:12px; color:var(--dim); margin-top:10px; white-space:pre-line; }
-  mark { background:var(--accent); color:#111; border-radius:2px; padding:0 1px; }
   .pill { display:inline-block; background:#232833; border-radius:20px; padding:2px 10px; font-size:11px; margin:2px; color:var(--dim); }
+  /* ── report toolbar ── */
+  #toolbar { display:none; gap:8px; align-items:center; flex-wrap:wrap; }
+  #toolbar button { width:auto; margin-top:0; padding:8px 14px; font-size:12px; }
+  #toolbar button.ghost { background:#232833; color:var(--ink); }
+  #toolbar input[type=text] { flex:1; min-width:140px; font-size:12px; }
+  #searchCount { font-size:11px; color:var(--dim); white-space:nowrap; }
+  /* ── ask panel ── */
+  #askPanel { display:none; gap:8px; align-items:center; }
+  #askPanel input[type=text] { flex:1; font-size:12px; }
+  #askPanel button { width:auto; margin-top:0; padding:8px 16px; font-size:12px; }
+  #qa { font-size:13px; line-height:1.6; max-height:220px; overflow:auto; }
+  /* ── report ── */
+  #reportWrap { flex:1; min-height:0; overflow:auto; }
+  #report { white-space:pre-wrap; font-size:13px; line-height:1.65; }
+  #report h1,#report h2 { color:var(--accent); margin:18px 0 8px; white-space:normal; }
+  #report h3 { color:var(--ink); margin:14px 0 6px; white-space:normal; }
+  #report table { border-collapse:collapse; margin:8px 0 18px; font-size:12px; white-space:normal; }
+  #report th,#report td { border:1px solid #2c313c; padding:5px 9px; text-align:left; vertical-align:top; }
+  #report th { background:#1d222c; }
+  #report tr.row-red td { background:rgba(216,74,74,.07); }
+  #report tr.row-orange td { background:rgba(224,138,46,.07); }
+  #report tr.row-green td { background:rgba(46,163,107,.07); }
+  #report tr.row-blue td { background:rgba(74,134,216,.07); }
+  mark { background:var(--accent); color:#111; border-radius:2px; padding:0 1px; }
+  .bdg { display:inline-block; padding:0 7px; border-radius:9px; font-size:11px; font-weight:700; white-space:nowrap; }
+  .bdg.green  { background:rgba(46,163,107,.18); color:#3ecf8e; }
+  .bdg.orange { background:rgba(224,138,46,.18); color:#f0a04a; }
+  .bdg.red    { background:rgba(216,74,74,.18);  color:#ef6a6a; }
+  .bdg.blue   { background:rgba(74,134,216,.18); color:#6aa3ef; }
+  .bdg.yellow { background:rgba(216,184,46,.18); color:#e8c95a; }
+  .bdg.grey   { background:rgba(154,160,171,.18);color:#9aa0ab; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🎬 edit<span>-table</span></h1>
+  <h1>🎬 edit-<span>table</span></h1>
   <p>Multi-tenant agentic screenplay analysis · <a href="/admin" style="color:var(--accent)">admin →</a></p>
 </header>
 <main>
-  <div class="card">
+  <div class="card" id="inputCard">
     <label>Your tenant access token (X-API-Key)</label>
     <input type="password" id="token" placeholder="tok_…" style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
     <small style="color:var(--dim)">Leave blank if your server has open access enabled — otherwise ask your admin for a token. Saved only in this browser.</small>
@@ -60,22 +90,26 @@
     <button id="go" onclick="analyze()">Analyze 🎞️</button>
     <div id="status"></div>
   </div>
-  <div class="card" id="after" style="display:none">
-    <button onclick="downloadReport()" style="margin-top:0">⬇ Download report (.md)</button>
-    <label>Ask about this report — interrogate any section, or ask to expand it</label>
-    <div style="display:flex;gap:8px">
-      <input id="q" type="text" placeholder="e.g. Expand section D into a full scene-by-scene edit table with timings"
-             style="flex:1;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
-      <button onclick="askReport()" style="width:auto;margin-top:0;padding:8px 18px">Ask</button>
+
+  <div id="reportCol">
+    <div id="toolbar">
+      <button onclick="openReport()">Open report ↗</button>
+      <button class="ghost" onclick="downloadHtml()">⬇ Download HTML</button>
+      <button class="ghost" onclick="printReport()">🖨 Print</button>
+      <button class="ghost" onclick="toggleAsk()" id="askBtn">Ask ▾</button>
+      <input type="text" id="search" placeholder="Search report…" oninput="reportSearch(this.value)">
+      <span id="searchCount"></span>
     </div>
-    <div id="qa" style="margin-top:10px;font-size:13px;line-height:1.6"></div>
-    <label style="margin-top:14px">Search report</label>
-    <input id="search" type="text" placeholder="scene label, EDIT ID, character…"
-           oninput="reportSearch(this.value)"
-           style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
-    <span id="searchCount" style="font-size:11px;color:var(--dim)"></span>
+    <div id="askPanel">
+      <input type="text" id="q" placeholder="Ask about this report — interrogate a section or ask to expand it"
+             onkeydown="if(event.key==='Enter')askReport()">
+      <button onclick="askReport()">Ask</button>
+    </div>
+    <div id="qa" style="display:none"></div>
+    <div class="card" id="reportWrap">
+      <div id="report"><em style="color:var(--dim)">The report will appear here.</em></div>
+    </div>
   </div>
-  <div class="card" id="report"><em style="color:var(--dim)">The report will appear here.</em></div>
 </main>
 <script>
 const statusEl = document.getElementById('status');
@@ -83,26 +117,49 @@ const tokenEl = document.getElementById('token');
 tokenEl.value = localStorage.getItem('me_token') || '';
 tokenEl.addEventListener('change', () => localStorage.setItem('me_token', tokenEl.value.trim()));
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
-function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
+/* ── color coding: spec §4 colors + P0–P3 + confidence + gates ── */
+const BADGE_RX=/🟢|🟠|🔴|🔵|⚪|\b(P0|P1|P2|P3|KEEP|PROTECT|RETAIN|REFINE|MAJOR REWORK|OPTIONAL TEST|UNASSESSABLE|NOT VERIFIED|CONDITIONAL|PASS|FAIL|HIGH|MEDIUM|LOW)\b/g;
+function badgeClass(m){
+  if(m==='🟢'||m==='KEEP'||m==='PROTECT'||m==='RETAIN'||m==='PASS'||m==='HIGH') return 'green';
+  if(m==='🟠'||m==='REFINE'||m==='CONDITIONAL'||m==='MEDIUM') return 'orange';
+  if(m==='🔴'||m==='P0'||m==='MAJOR REWORK'||m==='FAIL') return 'red';
+  if(m==='P1') return 'orange';
+  if(m==='P2'||m==='LOW') return 'yellow';
+  if(m==='P3') return 'grey';
+  if(m==='🔵'||m==='OPTIONAL TEST') return 'blue';
+  return 'grey';   // ⚪ UNASSESSABLE NOT VERIFIED
+}
+const badgeify = s => s.replace(BADGE_RX, m => `<span class="bdg ${badgeClass(m)}">${m}</span>`);
+function rowClass(rawLine){
+  if(/🔴|MAJOR REWORK|\bP0\b|\bFAIL\b/.test(rawLine)) return 'row-red';
+  if(/🟠|\bREFINE\b|\bP1\b|\bAMBER\b/.test(rawLine)) return 'row-orange';
+  if(/🔵|OPTIONAL TEST/.test(rawLine)) return 'row-blue';
+  if(/🟢|\bKEEP\b|\bPASS\b/.test(rawLine)) return 'row-green';
+  return '';
+}
+function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists, badges
   const lines = md.split('\n'); let html='', inTable=false;
   for(const ln of lines){
     if(ln.startsWith('|')){ const cells=ln.split('|').slice(1,-1).map(c=>c.trim());
       if(!inTable){html+='<table>'; inTable=true;}
       if(cells.every(c=>/^[-: ]+$/.test(c))) continue;
       const tag = html.endsWith('<table>')||html.endsWith('</tr><tr>') ? 'th':'td';
-      html+='<tr>'+cells.map(c=>'<'+tag+'>'+c+'</'+tag+'>').join('')+'</tr>'; continue; }
+      const rc = tag==='td' ? rowClass(ln) : '';
+      html+=`<tr class="${rc}">`+cells.map(c=>`<${tag}>`+badgeify(esc(c))+`</${tag}>`).join('')+'</tr>'; continue; }
     if(inTable){html+='</table>'; inTable=false;}
-    if(ln.startsWith('# ')) html+='<h1>'+esc(ln.slice(2))+'</h1>';
-    else if(ln.startsWith('## ')) html+='<h2>'+esc(ln.slice(3))+'</h2>';
-    else if(ln.startsWith('### ')) html+='<h3>'+esc(ln.slice(4))+'</h3>';
-    else if(ln.startsWith('- ')) html+='• '+esc(ln.slice(2))+'<br>';
-    else if(/^\d+\. /.test(ln)) html+=esc(ln)+'<br>';
+    if(ln.startsWith('# ')) html+='<h1>'+badgeify(esc(ln.slice(2)))+'</h1>';
+    else if(ln.startsWith('## ')) html+='<h2>'+badgeify(esc(ln.slice(3)))+'</h2>';
+    else if(ln.startsWith('### ')) html+='<h3>'+badgeify(esc(ln.slice(4)))+'</h3>';
+    else if(ln.startsWith('- ')) html+='• '+badgeify(esc(ln.slice(2)))+'<br>';
+    else if(/^\d+\. /.test(ln)) html+=badgeify(esc(ln))+'<br>';
     else if(ln.trim()==='') html+='<br>';
-    else html+=esc(ln)+'<br>';
+    else html+=badgeify(esc(ln))+'<br>';
   }
+  if(inTable) html+='</table>';
   return html.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
 }
-let lastReport=''; let lastReportHtml=''; let qaLog=[];
+/* ── state ── */
+let lastReport='', lastReportHtml='', lastTitle='', qaLog=[], reportUrl=null;
 const MODE_HINTS={
   full:'Attach files or paste a screenplay.',
   1:'Attach files or paste a screenplay — one agent does everything.',
@@ -112,6 +169,116 @@ const MODE_HINTS={
   compare:'Select exactly 2 files — first is version A, second is version B.'};
 function modeHint(){ document.getElementById('modeHint').textContent=MODE_HINTS[document.getElementById('stage').value]||''; }
 modeHint();
+function setReport(html, md, title){
+  lastReport=md; lastTitle=title||'edit-table report'; qaLog=[];
+  document.getElementById('qa').innerHTML=''; document.getElementById('qa').style.display='none';
+  document.getElementById('askPanel').style.display='none'; document.getElementById('askBtn').textContent='Ask ▾';
+  document.getElementById('search').value=''; document.getElementById('searchCount').textContent='';
+  const el=document.getElementById('report');
+  el.innerHTML=html; lastReportHtml=html;
+  document.getElementById('reportWrap').scrollTop=0;
+  document.getElementById('toolbar').style.display='flex';
+  if(reportUrl) URL.revokeObjectURL(reportUrl);
+}
+/* ── standalone rich HTML (side window / download / print) ── */
+function buildStandaloneHtml(){
+  let md=lastReport;
+  if(qaLog.length) md+='\n\n---\n\n# Follow-up Q&A\n\n'
+    +qaLog.map(h=>`## ${h.role==='user'?'Question':'Answer'}\n\n${h.content}`).join('\n\n');
+  const heads=[...md.matchAll(/^## +(.+)$/gm)].map(m=>m[1]).slice(0,40);
+  const nav=heads.map(h=>`<a href="#${encodeURIComponent(h)}">${h}</a>`).join('');
+  const body=mdToHtml(md).replace(/<h2>(.*?)<\/h2>/g,(m,t)=>`<h2 id="${encodeURIComponent(t.replace(/<[^>]+>/g,''))}">${t}</h2>`);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>${lastTitle}</title>
+<style>
+body{font:14px/1.6 system-ui,sans-serif;color:#20282e;background:#f3f3ef;margin:0}
+main{max-width:1150px;margin:0 auto;background:#fff;padding:44px}
+.kicker{letter-spacing:.12em;font-size:12px;color:#426c67}
+h1{font-size:34px;line-height:1.15;margin:10px 0 6px}
+.meta{font-size:12px;color:#5c6965;margin-bottom:8px}
+h2{font-size:23px;margin:38px 0 12px;border-top:2px solid #d7e0df;padding-top:20px}
+h3{font-size:17px;margin-top:22px}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+nav a{color:#244841;font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.legend span{padding:5px 9px;border-radius:4px;font-size:11px;font-weight:650}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:14px 0 22px}
+th{text-align:left;background:#244841;color:#fff}
+td,th{padding:8px;border:1px solid #dbe1df;vertical-align:top}
+tr:nth-child(even){background:#f6f8f7}
+tr.row-red td{background:#fdeeee}tr.row-orange td{background:#fdf6e8}
+tr.row-green td{background:#eef7f0}tr.row-blue td{background:#edf3fc}
+.bdg{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap}
+.bdg.green{background:#e6f4e9;color:#195b2f}.bdg.orange{background:#fdf0dd;color:#8a4d0f}
+.bdg.red{background:#fde3e3;color:#8f1f1f}.bdg.blue{background:#e3edfb;color:#1c4587}
+.bdg.yellow{background:#faf3d0;color:#6b5b00}.bdg.grey{background:#eceff1;color:#455a64}
+button.print{padding:9px 18px;background:#244841;color:#fff;border:0;border-radius:5px;font-weight:650;cursor:pointer}
+.note{background:#edf3f1;padding:12px 16px;border-left:4px solid #426c67;font-size:12px;margin:12px 0}
+@media(max-width:700px){main{padding:18px}}
+@media print{body{background:#fff}main{padding:0;max-width:none}nav,.no-print{display:none}
+table{font-size:10px}td,th{padding:5px}tr{break-inside:avoid}h2{break-after:avoid}}
+</style></head><body><main>
+<div class="kicker">EDIT-TABLE · SCREENPLAY ANALYSIS REPORT</div>
+<h1>${esc(lastTitle)}</h1>
+<div class="meta">Generated ${new Date().toLocaleString()}</div>
+<button class="print no-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+<div class="legend no-print">
+<span class="bdg green">🟢 KEEP / PROTECT / PASS</span><span class="bdg orange">🟠 REFINE / P1</span>
+<span class="bdg red">🔴 MAJOR REWORK / P0 / FAIL</span><span class="bdg blue">🔵 OPTIONAL TEST</span>
+<span class="bdg grey">⚪ UNASSESSABLE / NOT VERIFIED</span><span class="bdg yellow">P2</span>
+</div>
+${nav?`<nav class="no-print">${nav}</nav>`:''}
+${body}
+</main></body></html>`;
+}
+function reportBlob(){ return new Blob([buildStandaloneHtml()],{type:'text/html'}); }
+function openReport(){
+  if(!lastReport) return;
+  if(reportUrl) URL.revokeObjectURL(reportUrl);
+  reportUrl=URL.createObjectURL(reportBlob());
+  window.open(reportUrl,'_blank');
+}
+function downloadHtml(){
+  if(!lastReport) return;
+  const a=document.createElement('a'); a.href=URL.createObjectURL(reportBlob());
+  a.download=(lastTitle.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_')||'report')+'.html';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printReport(){
+  if(!lastReport) return;
+  const f=document.createElement('iframe');
+  f.style.position='fixed'; f.style.right='100%'; document.body.appendChild(f);
+  f.srcdoc=buildStandaloneHtml();
+  f.onload=()=>{ f.contentWindow.focus(); f.contentWindow.print();
+    setTimeout(()=>f.remove(),2000); };
+}
+/* ── ask / search ── */
+function toggleAsk(){
+  const p=document.getElementById('askPanel');
+  const show=p.style.display!=='flex';
+  p.style.display=show?'flex':'none';
+  document.getElementById('askBtn').textContent=show?'Ask ▴':'Ask ▾';
+  if(show) document.getElementById('q').focus();
+}
+async function askReport(){
+  const q=document.getElementById('q').value.trim();
+  if(!q||!lastReport) return;
+  const qa=document.getElementById('qa'); qa.style.display='block';
+  qa.innerHTML+=`<p><strong>Q:</strong> ${esc(q)}</p>`;
+  document.getElementById('q').value='';
+  statusEl.textContent='Thinking…';
+  try{
+    const token=tokenEl.value.trim();
+    const resp=await fetch('/api/ask',{method:'POST',
+      headers:{'Content-Type':'application/json',...(token?{'X-API-Key':token}:{})},
+      body:JSON.stringify({question:q,report_md:lastReport,history:qaLog})});
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.detail||resp.statusText);
+    qaLog.push({role:'user',content:q},{role:'assistant',content:data.answer});
+    qa.innerHTML+=mdToHtml(data.answer)+'<hr style="border-color:#2c313c;margin:14px 0">';
+    statusEl.textContent='';
+  }catch(e){ statusEl.textContent='Error: '+e.message; }
+}
 function reportSearch(q){
   const el=document.getElementById('report');
   el.innerHTML=lastReportHtml;
@@ -128,45 +295,11 @@ function reportSearch(q){
     node.parentNode.replaceChild(span,node);
   });
   cnt.textContent=hits.length+' match(es)';
+  if(hits.length) hits[0].parentElement.scrollIntoView({block:'start'});
 }
-function showAfter(){
-  document.getElementById('after').style.display='block';
-  qaLog=[]; document.getElementById('qa').innerHTML='';
-  document.getElementById('search').value=''; document.getElementById('searchCount').textContent='';
-}
-function downloadReport(){
-  if(!lastReport) return;
-  let md=lastReport;
-  if(qaLog.length) md+='\n\n---\n\n# Follow-up Q&A\n\n'
-    +qaLog.map(h=>`## ${h.role==='user'?'Question':'Answer'}\n\n${h.content}`).join('\n\n');
-  const blob=new Blob([md],{type:'text/markdown'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='edit-table-report-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.md';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-}
-async function askReport(){
-  const q=document.getElementById('q').value.trim();
-  if(!q||!lastReport) return;
-  const qa=document.getElementById('qa');
-  qa.innerHTML+=`<p><strong>Q:</strong> ${esc(q)}</p>`;
-  document.getElementById('q').value='';
-  statusEl.textContent='Thinking…';
-  try{
-    const token=tokenEl.value.trim();
-    const resp=await fetch('/api/ask',{method:'POST',
-      headers:{'Content-Type':'application/json',...(token?{'X-API-Key':token}:{})},
-      body:JSON.stringify({question:q,report_md:lastReport,history:qaLog})});
-    const data=await resp.json();
-    if(!resp.ok) throw new Error(data.detail||resp.statusText);
-    qaLog.push({role:'user',content:q},{role:'assistant',content:data.answer});
-    qa.innerHTML+=mdToHtml(data.answer)+'<hr style="border-color:#2c313c;margin:14px 0">';
-    statusEl.textContent='';
-  }catch(e){ statusEl.textContent='Error: '+e.message; }
-}
+/* ── main run ── */
 async function analyze(){
   const btn=document.getElementById('go'); btn.disabled=true;
-  const reportEl=document.getElementById('report');
   const fmtSize = n => n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.round(n/1024)+' KB';
   statusEl.textContent='Running pipeline…';
   try{
@@ -194,9 +327,8 @@ async function analyze(){
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       if(data.report_md!==undefined){   // single-report modes (compare / revise)
-        reportEl.innerHTML=mdToHtml(data.report_md);
-        lastReport=data.report_md; lastReportHtml=reportEl.innerHTML;
-        showAfter();
+        const t=fs.length===2 ? `${fs[0].name} vs ${fs[1].name}` : fs[0].name;
+        setReport(mdToHtml(data.report_md), data.report_md, t);
         statusEl.textContent='Saved: '+data.report_path;
         btn.disabled=false; return;
       }
@@ -207,11 +339,9 @@ async function analyze(){
         else { html+=`<h2>✅ ${esc(r.filename)}</h2>`+mdToHtml(r.report_md); }
         html+='<hr style="border-color:#2c313c;margin:28px 0">';
       });
-      reportEl.innerHTML=html;
       lastReport=data.results.filter(r=>!r.error)
         .map(r=>`# ${r.filename}\n\n${r.report_md}`).join('\n\n---\n\n');
-      lastReportHtml=html;
-      showAfter();
+      setReport(html, lastReport, fs.length===1 ? fs[0].name : 'Batch report');
       const okN=data.results.filter(r=>!r.error).length;
       statusEl.textContent=`Done: ${okN}/${data.results.length} succeeded.`;
     } else {
@@ -223,9 +353,7 @@ async function analyze(){
         body:JSON.stringify({screenplay_text:text, stage, mode, target_runtime: rt?+rt:null})});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
-      reportEl.innerHTML=mdToHtml(data.report_md);
-      lastReport=data.report_md; lastReportHtml=reportEl.innerHTML;
-      showAfter();
+      setReport(mdToHtml(data.report_md), data.report_md, data.report_path);
       statusEl.textContent=(data.stages?data.stages.join('\n')+'\n':'')+'Saved: '+data.report_path;
     }
   }catch(e){ statusEl.textContent='Error: '+e.message; }
