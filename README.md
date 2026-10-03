@@ -163,7 +163,8 @@ src/edit_table/
   cli.py           `edit-table analyze|serve`
   server.py        FastAPI REST API + embedded web UI (web/index.html)
 prompts-source/MASTER_AGENT.txt   the source-of-truth master prompt
-examples/        sample screenplay for testing
+examples/        sample_screenplay.txt (clean) · flawed_screenplay.txt (7 planted defects
+                 listed at the end — use it to verify the pipeline catches them)
 tests/           offline pipeline tests (mock mode)
 ```
 

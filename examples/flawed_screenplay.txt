@@ -1,0 +1,168 @@
+KALYANAM — A FLAWED SAMPLE SCREENPLAY (FOR TESTING edit-table)
+
+Written by
+
+Sample Script QA Team
+
+NOTE TO TESTERS: This script deliberately contains known defects so you can verify
+the analysis pipeline catches them. Planted flaws are listed at the end.
+
+EXT. VILLAGE FAIR - DAY
+
+A festival crowd. KALYAN, 28, charming but aimless, helps his father SESHU, 60s, at a flower stall. They argue about Kalyan's future.
+
+SESHU
+Your brother runs the shop in the city. Why can't you be like him?
+
+KALYAN
+Because I am not him, Nanna.
+
+EXT. BUS STOP - DAY
+
+Kalyan waits with a suitcase. His mother LAKSHMI, 50s, packs him tiffin and cries a little.
+
+LAKSHMI
+Call when you reach.
+
+Kalyan nods. The bus arrives.
+
+INT. BUS - DAY
+
+Kalyan watches the village go by through the window, thinking.
+
+EXT. CITY BUS STATION - DAY
+
+Kalyan arrives, overwhelmed by the noise. He asks directions from a stranger.
+
+INT. BROTHER'S SHOP - DAY
+
+Kalyan's brother PRAVEEN, 35, busy and sharp, barely looks up.
+
+PRAVEEN
+You can sleep in the back room. But I need you at the counter from morning.
+
+Kalyan agrees quietly.
+
+INT. SHOP BACK ROOM - NIGHT
+
+Kalyan unpacks. He finds an OLD BRASS KEY in his bag — his grandmother gave it to him years ago, he remembers suddenly. He looks at it, puzzled, then puts it in his pocket. (SETUP — never paid off.)
+
+INT. SHOP - DAY (MONTAGE)
+
+Days pass. Kalyan learns the trade. Customers come and go. Praveen corrects his mistakes. The routine settles.
+
+EXT. TEA STALL - EVENING
+
+Kalyan meets MEENA, 26, bold and funny, a regular at the stall. They banter.
+
+MEENA
+You always order the same tea. Ever tried the lemon one?
+
+KALYAN
+Why change what works?
+
+They laugh. (BEAT 1 of the romance — will be repeated twice more with no evolution.)
+
+INT. SHOP - DAY
+
+A supplier short-changes Praveen. Kalyan notices but says nothing.
+
+INT. TEA STALL - EVENING
+
+Kalyan and Meena again. Same seats.
+
+MEENA
+You always order the same tea. Ever tried the lemon one?
+
+KALYAN
+Why change what works?
+
+They laugh. (BEAT 2 — identical dialogue, repeated emotional beat.)
+
+INT. SHOP - DAY
+
+The supplier cheats Praveen again, bigger this time. Kalyan again says nothing.
+
+EXT. MARKET STREET - DAY
+
+Kalyan follows the supplier and discovers he is diverting stock to a rival shop run by DURGA, 40s, cold and calculating.
+
+INT. DURGA'S SHOP - DAY
+
+Durga catches Kalyan snooping. Her men warn him off. She smiles.
+
+DURGA
+Village boys should stay in the village.
+
+INT. TEA STALL - EVENING
+
+Kalyan tells Meena everything. She urges him to tell Praveen.
+
+MEENA
+This is your family. You have to speak.
+
+KALYAN
+If I speak and I'm wrong, Praveen will never trust me.
+
+INT. SHOP - NIGHT
+
+INTERVAL BLOCK: Praveen counts the day's earnings. They are short again. Kalyan almost speaks, then doesn't. Praveen looks at him, suspicious. NOTHING ELSE HAPPENS. (FLAT INTERVAL — no reveal, no escalation, no new question.)
+
+INT. SHOP - DAY
+
+Praveen confronts Kalyan about the missing stock and accuses him of theft. Kalyan, hurt, finally reveals the supplier and Durga.
+
+INT. DURGA'S SHOP - DAY
+
+Kalyan and Praveen confront Durga with proof. She dismisses them.
+
+DURGA
+Paper doesn't scare me.
+
+INT. SHOP - NIGHT
+
+The brothers argue. Praveen feels betrayed that Kalyan hid it so long. Lakshmi calls; Kalyan lies that everything is fine. (KARUNA beat.)
+
+INT. TEA STALL - EVENING
+
+Meena comforts Kalyan. (BEAT 3 — the same comfort-banter rhythm as beats 1 and 2; the romance has not evolved.)
+
+MEENA
+You always order the same tea.
+
+KALYAN
+Some things don't need to change.
+
+INT. WAREHOUSE - NIGHT
+
+Kalyan sneaks in and photographs the diverted stock. He is caught. A chase. He escapes with the photos but drops his phone. (New question raised: will Durga find the phone? — never answered. BROKEN PROMISE.)
+
+EXT. CITY BUS STATION - DAY
+
+Kalyan decides to leave the city, defeated. He says goodbye to Meena.
+
+MEENA
+So that's it? You run?
+
+INT. SHOP - DAY
+
+Praveen, alone, realizes the accounts finally add up only if Kalyan was telling the truth. He rushes to the station.
+
+EXT. BUS STATION - DAY
+
+Praveen stops the bus. Brothers reconcile in front of everyone. Durga is arrested off-screen — we only hear about it from a bystander's radio. (CLIMAX RESOLVED BY EXPosition — the villain's defeat is told, not shown.)
+
+EXT. VILLAGE FAIR - DAY
+
+Kalyan returns home, now confident, and reopens his father's stall with new ideas. He hugs Seshu. LAKSHMI smiles. (THE BRASS KEY from scene 9 is never mentioned again. UNPAID SETUP.)
+
+FADE OUT.
+
+PLANTED FLAWS (what the pipeline should catch):
+1. Three consecutive setup scenes with no escalation (Scenes 2-4: bus stop, bus, station).
+2. UNPAID SETUP: the brass key (Scene 9) is never explained or used.
+3. BROKEN PROMISE: the dropped phone in Scene 20 — raised, never resolved.
+4. Romance repetition: the same tea joke / emotional beat three times (Scenes 10, 13, 22) with no evolution.
+5. FLAT INTERVAL: Scene 16 raises suspicion but no reveal, escalation, or new question.
+6. CLIMAX TOLD NOT SHOWN: Durga's defeat happens off-screen (Scene 25).
+7. PACING: protagonist is passive for the entire first half (Scenes 12, 14 — sees the cheating, does nothing, twice).

@@ -87,7 +87,13 @@ def estimate_scene_minutes(text: str, minutes_per_page: float = 1.0) -> float:
 
 
 def _guess_title(text: str) -> str | None:
-    for line in text.splitlines()[:15]:
+    lines = text.splitlines()
+    # first line of the file is usually the title (screenplay convention)
+    if lines:
+        first = lines[0].strip()
+        if 2 < len(first) < 90:
+            return first.split(" — ")[0].split(" - ")[0].title()
+    for line in lines[:15]:
         line = line.strip()
         if 2 < len(line) < 80 and line.isupper() and not HEADING_RE.match(line):
             return line.title()
