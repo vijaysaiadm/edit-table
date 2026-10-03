@@ -69,6 +69,22 @@ A `--stage 1` solo mode runs the classic single-agent pipeline for comparison.
 - The registry is a JSON file by default; swap it for a database in production behind the same
   `TenantRegistry` interface.
 
+## Where the API key lives
+
+Three layers, highest priority wins:
+
+| Layer | Where | Set via |
+|---|---|---|
+| 1. Tenant's own key | `tenants.json` (gitignored) | Admin UI → Tenants, or `edit-table tenant create --llm-api-key` |
+| 2. Server default | `server_settings.json` (gitignored) | **Admin UI → Server default LLM settings** |
+| 3. Fallback | `.env` → `LLM_API_KEY` | text editor |
+
+**Admin UI** (`/admin`, linked from the main page): on first server start an admin key
+(`adm_…`) is generated, printed to the console, and stored in `server_settings.json`.
+With that key you can paste the server-default API key, choose the model, and create /
+delete tenants (each gets an access token to share). Keys are write-only through the API —
+the admin page only ever shows the last 4 characters.
+
 ## Setup
 
 ```bash
@@ -135,7 +151,8 @@ python tests/test_pipeline.py        # offline, no API key needed
 
 ```
 src/edit_table/
-  config.py        settings from environment (.env) + per-tenant overrides; keys never in code
+  config.py        settings resolution: tenant > admin server settings > env/.env
+  server_settings.py  admin-managed server defaults + admin token (server_settings.json)
   tenants.py       multi-tenant registry: tokens, per-tenant LLM keys/models, isolation
   llm.py           OpenAI-compatible client (async, retried, concurrency-capped) + MockLLM
   screenplay.py    loader + heuristic scene splitter (INT./EXT., SCENE n, సీన్ n)

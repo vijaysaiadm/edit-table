@@ -87,6 +87,33 @@ def test_multi_tenant_isolation(tmp_path):
     assert mda != mdb
 
 
+def test_server_settings_priority(tmp_path):
+    """Admin-set server default overrides env; tenant key overrides the server default."""
+    import os
+    from edit_table.config import load_settings
+    from edit_table.server_settings import ServerSettingsStore
+
+    os.environ["LLM_API_KEY"] = "sk-from-env"
+    store = ServerSettingsStore(tmp_path / "server_settings.json")
+    assert store.ensure_admin_token().startswith("adm_")
+    store.update(llm_api_key="sk-admin-set", llm_model="admin-model")
+    store.reload()
+
+    s = load_settings(server_defaults=store.get())
+    assert s.api_key == "sk-admin-set" and s.model == "admin-model"
+
+    tenant = type("T", (), {"tenant_id": "x", "display_name": "X",
+                            "llm_api_key": "sk-tenant", "llm_base_url": None,
+                            "llm_model": None, "max_concurrency": None,
+                            "minutes_per_page": None})()
+    s2 = load_settings(tenant=tenant, server_defaults=store.get())
+    assert s2.api_key == "sk-tenant" and s2.model == "admin-model"
+
+    masked_view = store.get()
+    assert store.verify_admin(store.ensure_admin_token())
+    assert not store.verify_admin("wrong")
+
+
 if __name__ == "__main__":
     for name, fn in [(n, f) for n, f in list(globals().items()) if n.startswith("test_")]:
         if fn.__code__.co_argcount == 0:

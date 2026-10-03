@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>edit-table — Admin</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --ink:#e8e9ec; --dim:#9aa0ab; --accent:#e8b339; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { padding:20px 28px; border-bottom:1px solid #262a33; }
+  header h1 { font-size:20px; } header h1 span { color:var(--accent); }
+  header p { color:var(--dim); font-size:13px; margin-top:4px; }
+  main { max-width:860px; margin:0 auto; padding:20px; display:flex; flex-direction:column; gap:20px; }
+  .card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:18px; }
+  h2 { font-size:15px; margin-bottom:12px; color:var(--accent); }
+  label { display:block; font-size:12px; color:var(--dim); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
+  input { width:100%; background:#0c0e12; color:var(--ink); border:1px solid #2c313c; border-radius:8px; padding:9px; }
+  button { padding:10px 18px; background:var(--accent); color:#111; border:0; border-radius:8px;
+           font-weight:700; cursor:pointer; margin-top:14px; }
+  button:disabled { opacity:.5; }
+  button.danger { background:#c0392b; color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  th,td { border:1px solid #2c313c; padding:7px 10px; text-align:left; }
+  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; }
+  code { background:#0c0e12; padding:2px 6px; border-radius:5px; font-size:12px; }
+  #msg { font-size:13px; margin-top:10px; color:var(--dim); white-space:pre-line; }
+  .row { display:flex; gap:12px; } .row > div { flex:1; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 edit<span>-table</span> · Admin</h1>
+  <p>Server default LLM key & model · tenant management — <a href="/">← back to analysis UI</a></p>
+</header>
+<main>
+  <div class="card">
+    <label>Admin key (X-Admin-Key) — printed in the server console on first start</label>
+    <input type="password" id="adminKey" placeholder="adm_…">
+    <div id="msg">Enter the admin key to load settings and tenants. Saved only in this browser.</div>
+  </div>
+
+  <div class="card">
+    <h2>Server default LLM settings</h2>
+    <p style="color:var(--dim);font-size:12px">Used by tenants that don't bring their own key.
+       Priority: tenant key → this → <code>.env</code>.</p>
+    <label>API key</label>
+    <input type="password" id="apiKey" placeholder="sk-… (leave blank to keep current)">
+    <div class="row">
+      <div><label>Model</label><input id="model" placeholder="gpt-4o"></div>
+      <div><label>Base URL</label><input id="baseUrl" placeholder="https://api.openai.com/v1"></div>
+    </div>
+    <button onclick="saveSettings()">Save settings</button>
+  </div>
+
+  <div class="card">
+    <h2>Tenants</h2>
+    <table id="tenantTable"><thead><tr>
+      <th>ID</th><th>Name</th><th>Model</th><th>Key</th><th>Access token</th><th></th>
+    </tr></thead><tbody></tbody></table>
+    <h2 style="margin-top:22px">New tenant</h2>
+    <div class="row">
+      <div><label>ID</label><input id="newId" placeholder="studio-a"></div>
+      <div><label>Display name</label><input id="newName" placeholder="Studio A"></div>
+    </div>
+    <label>Own LLM key (optional — blank = use server default)</label>
+    <input type="password" id="newKey" placeholder="sk-…">
+    <button onclick="createTenant()">Create tenant</button>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const keyEl = $('adminKey');
+keyEl.value = localStorage.getItem('et_admin') || '';
+keyEl.addEventListener('change', () => { localStorage.setItem('et_admin', keyEl.value.trim()); loadAll(); });
+const H = () => ({'X-Admin-Key': keyEl.value.trim()});
+function msg(t){ $('msg').textContent = t; }
+
+async function loadAll(){
+  if(!keyEl.value.trim()) return;
+  try{
+    const [s, t] = await Promise.all([
+      fetch('/api/admin/settings',{headers:H()}),
+      fetch('/api/admin/tenants',{headers:H()}),
+    ]);
+    if(s.status===401 || t.status===401){ msg('Invalid admin key.'); return; }
+    const sd = await s.json(), td = await t.json();
+    $('model').value = sd.llm_model || '';
+    $('baseUrl').value = sd.llm_base_url || '';
+    $('apiKey').placeholder = sd.llm_api_key_set ? 'current: '+sd.llm_api_key+' (leave blank to keep)' : 'sk-…';
+    const tb = document.querySelector('#tenantTable tbody');
+    tb.innerHTML = '';
+    td.tenants.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><code>${t.tenant_id}</code></td><td>${t.display_name}</td>
+        <td>${t.llm_model||'inherit'}</td><td>${t.has_own_key?'own':'server'}</td>
+        <td><code>${t.api_token}</code></td>
+        <td><button class="danger" onclick="delTenant('${t.tenant_id}')">Delete</button></td>`;
+      tb.appendChild(tr);
+    });
+    msg('Loaded. Tenants: '+td.tenants.length);
+  }catch(e){ msg('Error: '+e.message); }
+}
+
+async function saveSettings(){
+  const body = { llm_model: $('model').value.trim()||null,
+                 llm_base_url: $('baseUrl').value.trim()||null };
+  if($('apiKey').value.trim()) body.llm_api_key = $('apiKey').value.trim();
+  const r = await fetch('/api/admin/settings',{method:'POST',headers:{...H(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  msg(r.ok ? 'Settings saved.' : 'Failed: '+(await r.json()).detail);
+  $('apiKey').value=''; loadAll();
+}
+
+async function createTenant(){
+  const body = { tenant_id:$('newId').value.trim(), display_name:$('newName').value.trim(),
+                 llm_api_key:$('newKey').value.trim()||null };
+  const r = await fetch('/api/admin/tenants',{method:'POST',headers:{...H(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if(r.ok){ msg(`Created. Share this access token with the tenant:\n${d.api_token}`); }
+  else msg('Failed: '+d.detail);
+  loadAll();
+}
+
+async function delTenant(id){
+  if(!confirm('Delete tenant '+id+'?')) return;
+  const r = await fetch('/api/admin/tenants/'+id,{method:'DELETE',headers:H()});
+  msg(r.ok ? 'Deleted '+id : 'Failed'); loadAll();
+}
+
+loadAll();
+</script>
+</body>
+</html>

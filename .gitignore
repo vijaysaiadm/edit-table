@@ -10,6 +10,7 @@ dist/
 # Secrets — never commit your API key
 .env
 tenants.json
+server_settings.json
 
 # Reports & caches
 reports/

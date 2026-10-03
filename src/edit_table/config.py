@@ -43,9 +43,18 @@ class Settings:
             )
 
 
-def load_settings(mock: bool = False, tenant: "object | None" = None) -> Settings:
-    """Server-default settings, optionally overridden by a Tenant record."""
+def load_settings(mock: bool = False, tenant: "object | None" = None,
+                  server_defaults: "dict | None" = None) -> Settings:
+    """Resolve settings by priority: tenant > server defaults (admin UI) > env/.env."""
     s = Settings()
+    defaults = server_defaults or {}
+    if defaults.get("llm_api_key"):
+        s.api_key = defaults["llm_api_key"]
+    if defaults.get("llm_base_url"):
+        s.base_url = defaults["llm_base_url"]
+    if defaults.get("llm_model"):
+        s.model = defaults["llm_model"]
+        s.worker_model = defaults["llm_model"]
     if tenant is not None:
         s.tenant_id = tenant.tenant_id
         s.display_name = tenant.display_name
