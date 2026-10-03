@@ -143,7 +143,7 @@ def render_report(result: AnalysisResult) -> str:
 
 
 def save_outputs(result: AnalysisResult, out_dir: str | Path) -> tuple[Path, Path]:
-    out = Path(out_dir)
+    out = Path(out_dir) / result.tenant_id   # per-tenant isolation of reports
     out.mkdir(parents=True, exist_ok=True)
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in result.screenplay_title)[:60]
     md = out / f"{safe}_edit_report.md"

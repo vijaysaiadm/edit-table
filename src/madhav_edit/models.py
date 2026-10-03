@@ -110,12 +110,13 @@ class FinalVerdict:
 @dataclass
 class AnalysisResult:
     screenplay_title: str
-    brief: Brief
-    scene_analyses: list[SceneAnalysis]
-    genre_findings: list[GenreFinding]
-    utilities: dict[str, UtilityResult]
-    conflicts: list[Conflict]
-    final_verdicts: list[FinalVerdict]
+    tenant_id: str = "default"   # isolation: every artifact is scoped to a tenant
+    brief: Brief = field(default_factory=lambda: Brief())
+    scene_analyses: list[SceneAnalysis] = field(default_factory=list)
+    genre_findings: list[GenreFinding] = field(default_factory=list)
+    utilities: dict[str, UtilityResult] = field(default_factory=dict)
+    conflicts: list[Conflict] = field(default_factory=list)
+    final_verdicts: list[FinalVerdict] = field(default_factory=list)
     emotional_graph: list[dict[str, Any]] = field(default_factory=list)
     final_edit_plan: str = ""
     top_opportunities: list[str] = field(default_factory=list)

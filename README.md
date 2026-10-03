@@ -1,8 +1,13 @@
 # 🎬 madhav-edit
 
-**Agentic film-editing screenplay analysis** — a swarm architecture for the *MADHAV FILM EDITOR — MASTER AGENT* prompt (`prompts-source/MADHAV_MASTER_AGENT.txt`).
+**Multi-tenant agentic film-editing screenplay analysis** — a swarm architecture built around the
+*MADHAV FILM EDITOR — MASTER AGENT* prompt (`prompts-source/MADHAV_MASTER_AGENT.txt`). The original
+prompt was written for one editor; this application serves **any filmmaker, editor or studio** — each
+tenant gets isolated credentials, isolated reports, and an optional per-tenant LLM key/model.
 
-Built for Madhav Kumar's Telugu commercial cinema editing work: screenplay analysis, scene-by-scene edit tables, rhythm/tempo maps, BGM design, runtime reduction and commercial-cinema checks — produced by multiple cooperating agents and reconciled by a lead agent.
+Built for commercial Indian cinema editing work: screenplay analysis, scene-by-scene edit tables,
+rhythm/tempo maps, BGM design, runtime reduction and commercial-cinema checks — produced by multiple
+cooperating agents and reconciled by a lead agent.
 
 ## Architecture
 
@@ -43,6 +48,27 @@ Built for Madhav Kumar's Telugu commercial cinema editing work: screenplay analy
 Every worker judges against the lead's *shared brief*, so scene verdicts stay globally coherent.
 A `--stage 1` solo mode runs the classic single-agent pipeline for comparison.
 
+## Multi-tenancy
+
+- **Editor persona is generic** — agents serve whichever filmmaker/studio submitted the script,
+  and mirror the submitter's language (Telugu/Tanglish/Hindi/English).
+- **Tenants are managed with `madhav-edit tenant`** and stored in `tenants.json`
+  (gitignored — copy `tenants.example.json` to start):
+  ```bash
+  cp tenants.example.json tenants.json
+  madhav-edit tenant list
+  madhav-edit tenant create studio-a "Studio A" --llm-api-key sk-their-own-key --llm-model gpt-4o
+  ```
+  Each tenant gets an auto-generated `api_token`. A tenant may bring its **own LLM key and model**
+  (billed to them) or inherit the server default from `.env`.
+- **Isolation:**
+  - CLI: `madhav-edit analyze script.txt --tenant studio-a` → settings + `reports/studio-a/`
+  - Web/API: clients present their token as the `X-API-Key` header; unknown tokens get 401;
+    every artifact is written under `reports/<tenant_id>/`
+  - Per-tenant single-flight guards — tenants never see or block each other
+- The registry is a JSON file by default; swap it for a database in production behind the same
+  `TenantRegistry` interface.
+
 ## Setup
 
 ```bash
@@ -69,13 +95,20 @@ MAX_CONCURRENCY=6
 # Full swarm (stages 1+2+3) — the complete A–P edit report
 madhav-edit analyze screenplay.txt --target-runtime 150
 
+# As a specific tenant (own key/model, reports/<tenant>/ folder)
+madhav-edit analyze screenplay.txt --tenant studio-a
+
+# Manage tenants
+madhav-edit tenant list
+madhav-edit tenant create editor-b "Independent Editor B"
+
 # Solo single-agent mode (stage 1)
 madhav-edit analyze screenplay.txt --stage 1
 
 # Offline test without an API key (deterministic mock workers)
 madhav-edit analyze examples/sample_screenplay.txt --mock
 
-# Web UI
+# Multi-tenant web UI (clients sign in with their X-API-Key token)
 madhav-edit serve    # http://localhost:7100
 ```
 
@@ -102,7 +135,8 @@ python tests/test_pipeline.py        # offline, no API key needed
 
 ```
 src/madhav_edit/
-  config.py        settings from environment (.env); keys never live in code
+  config.py        settings from environment (.env) + per-tenant overrides; keys never in code
+  tenants.py       multi-tenant registry: tokens, per-tenant LLM keys/models, isolation
   llm.py           OpenAI-compatible client (async, retried, concurrency-capped) + MockLLM
   screenplay.py    loader + heuristic scene splitter (INT./EXT., SCENE n, సీన్ n)
   models.py        dataclasses for every pipeline artifact

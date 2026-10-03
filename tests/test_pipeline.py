@@ -62,6 +62,31 @@ def test_solo_stage1_mock():
     assert result.final_edit_plan and result.final_verdicts
 
 
+def test_multi_tenant_isolation(tmp_path):
+    """Two tenants: own keys/models, token lookup, per-tenant report folders."""
+    import asyncio
+    from madhav_edit.config import load_settings
+    from madhav_edit.tenants import TenantRegistry
+
+    reg = TenantRegistry(tmp_path / "tenants.json")
+    a = reg.create("studio-a", "Studio A", llm_api_key="sk-a", llm_model="gpt-4o")
+    b = reg.create("editor-b", "Editor B")  # no own key → inherits server default
+    assert reg.by_token(a.api_token).tenant_id == "studio-a"
+    assert reg.by_token(b.api_token).tenant_id == "editor-b"
+
+    sa = load_settings(mock=True, tenant=reg.by_token(a.api_token))
+    sb = load_settings(mock=True, tenant=reg.by_token(b.api_token))
+    assert sa.tenant_id == "studio-a" and sa.model == "gpt-4o" and sa.api_key == "sk-a"
+    assert sb.tenant_id == "editor-b" and sb.api_key != "sk-a"  # isolated
+
+    ra = asyncio.run(run_analysis(SAMPLE, sa, stages=(1, 2, 3)))
+    rb = asyncio.run(run_analysis(SAMPLE, sb, stages=(1, 2, 3)))
+    mda, _ = save_outputs(ra, tmp_path / "reports")
+    mdb, _ = save_outputs(rb, tmp_path / "reports")
+    assert mda.parent.name == "studio-a" and mdb.parent.name == "editor-b"
+    assert mda != mdb
+
+
 if __name__ == "__main__":
     for name, fn in [(n, f) for n, f in list(globals().items()) if n.startswith("test_")]:
         if fn.__code__.co_argcount == 0:

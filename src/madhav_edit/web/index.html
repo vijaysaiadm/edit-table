@@ -33,10 +33,13 @@
 <body>
 <header>
   <h1>🎬 madhav<span>-edit</span></h1>
-  <p>Agentic screenplay analysis · lead agent → parallel scene workers → genre specialists → utility workers → lead reconciliation</p>
+  <p>Multi-tenant agentic screenplay analysis · lead agent → parallel scene workers → genre specialists → utility workers → lead reconciliation</p>
 </header>
 <main>
   <div class="card">
+    <label>Your tenant access token (X-API-Key)</label>
+    <input type="password" id="token" placeholder="tok_…" style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
+    <small style="color:var(--dim)">Ask your admin for a token. Saved only in this browser.</small>
     <label>Screenplay (.txt / .pdf / .fountain)</label>
     <input type="file" id="file">
     <label>— or paste screenplay text —</label>
@@ -53,6 +56,9 @@
 </main>
 <script>
 const statusEl = document.getElementById('status');
+const tokenEl = document.getElementById('token');
+tokenEl.value = localStorage.getItem('me_token') || '';
+tokenEl.addEventListener('change', () => localStorage.setItem('me_token', tokenEl.value.trim()));
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
 function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
   const lines = md.split('\n'); let html='', inTable=false;
@@ -77,16 +83,18 @@ async function analyze(){
   statusEl.textContent='Running pipeline…';
   try{
     let resp;
+    const token = tokenEl.value.trim();
+    if(!token){ statusEl.textContent='Enter your tenant access token first.'; btn.disabled=false; return; }
     const f=document.getElementById('file').files[0];
     const stage=document.getElementById('stage').value;
     const rt=document.getElementById('runtime').value;
     if(f){ const fd=new FormData(); fd.append('file',f); fd.append('stage',stage);
       if(rt) fd.append('target_runtime',rt);
-      resp=await fetch('/api/analyze-file',{method:'POST',body:fd});
+      resp=await fetch('/api/analyze-file',{method:'POST',headers:{'X-API-Key':token},body:fd});
     } else {
       const text=document.getElementById('text').value;
       if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose a file first.'; btn.disabled=false; return; }
-      resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
         body:JSON.stringify({screenplay_text:text, stage, target_runtime: rt?+rt:null})});
     }
     const data=await resp.json();

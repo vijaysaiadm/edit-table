@@ -38,6 +38,7 @@ async def run_analysis(path: str | Path, settings: Settings,
     sp = load_screenplay(path, settings)
     result = AnalysisResult(
         screenplay_title=sp.title,
+        tenant_id=settings.tenant_id,
         brief=Brief(target_runtime_min=target_runtime or sp.estimated_runtime,
                     current_runtime_min=sp.estimated_runtime),
         scene_analyses=[], genre_findings=[], utilities={},

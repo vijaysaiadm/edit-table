@@ -1,0 +1,22 @@
+{
+  "tenants": {
+    "studio-a": {
+      "display_name": "Studio A",
+      "api_token": "tok_replace-with-random-token",
+      "llm_api_key": "sk-studio-a-own-key",
+      "llm_model": "gpt-4o",
+      "llm_base_url": null,
+      "max_concurrency": 6,
+      "minutes_per_page": 1.0
+    },
+    "editor-b": {
+      "display_name": "Independent Editor B",
+      "api_token": "tok_replace-with-another-random-token",
+      "llm_api_key": null,
+      "llm_model": null,
+      "llm_base_url": null,
+      "max_concurrency": null,
+      "minutes_per_page": null
+    }
+  }
+}
