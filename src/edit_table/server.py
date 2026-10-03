@@ -19,6 +19,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
 from .config import load_settings
+from .llm import make_llm
 from .orchestrator import run_analysis, run_develop, run_doctor
 from .paths import data_path
 from .report import render_report, save_outputs
@@ -42,6 +43,13 @@ class AnalyzeRequest(BaseModel):
     stage: str = "full"
     mode: str = "analyze"      # analyze | doctor | develop
     fmt: str = "feature"       # feature / web series / tv serial / sitcom / short film
+
+
+class AskRequest(BaseModel):
+    """Follow-up Q&A on a generated report — stateless (client resends report+history)."""
+    question: str
+    report_md: str
+    history: list[dict] = []
 
 
 class SettingsRequest(BaseModel):
@@ -195,6 +203,35 @@ def create_app(tenants_file: str | Path | None = None,
             except Exception as e:  # one bad file shouldn't kill the batch
                 results.append({"filename": name, "error": f"{type(e).__name__}: {e}"})
         return JSONResponse({"tenant": tenant.tenant_id, "results": results})
+
+    # ── follow-up Q&A on a generated report ─────────────────────────────────
+    @app.post("/api/ask")
+    async def ask(req: AskRequest,
+                  tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
+        """Ask questions about a report, or request dynamic expansion of its sections.
+        Stateless: the client resends the report and the conversation each call, so
+        nothing report-specific is stored server-side between turns."""
+        settings = load_settings(tenant=tenant, server_defaults=store.get())
+        llm = make_llm(settings)
+        system = (
+            "[[ROLE:ask]]\nYou are the edit-table analysis assistant. The user has a report "
+            "(below) produced by a screenplay analysis pipeline and wants to go deeper. Rules:\n"
+            "- Ground every answer in the report; quote or reference the section you draw on.\n"
+            "- When asked to EXPAND a section, produce ready-to-insert Markdown under a clear "
+            "heading (e.g. expanded scene-by-scene tables with timings, extended BGM maps, "
+            "detailed fix lists). The horizon of the report expands dynamically this way.\n"
+            "- Be concrete: scene numbers, minute marks, priorities, examples.\n"
+            "- If the report lacks the answer, say so plainly instead of inventing content.\n"
+            "Output Markdown."
+        )
+        turns = "\n\n".join(f"**{h.get('role','?').upper()}:** {h.get('content','')}"
+                            for h in req.history[-10:]
+                            if h.get("role") in ("user", "assistant") and h.get("content"))
+        user = (f"REPORT:\n---\n{req.report_md[:50000]}\n---\n\n"
+                f"CONVERSATION SO FAR:\n{turns or '(none)'}\n\n"
+                f"NEW QUESTION:\n{req.question}")
+        answer = await llm.chat_markdown(system, user)
+        return JSONResponse({"tenant": tenant.tenant_id, "answer": answer})
 
     # ── admin: server default LLM settings ──────────────────────────────────
     @app.get("/api/admin/settings")

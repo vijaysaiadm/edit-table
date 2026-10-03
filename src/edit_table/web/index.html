@@ -56,7 +56,17 @@
     <button id="go" onclick="analyze()">Analyze 🎞️</button>
     <div id="status"></div>
   </div>
-  <div class="card" id="report"><em style="color:var(--dim)">The A–P edit report will appear here.</em></div>
+  <div class="card" id="after" style="display:none">
+    <button onclick="downloadReport()" style="margin-top:0">⬇ Download report (.md)</button>
+    <label>Ask about this report — interrogate any section, or ask to expand it</label>
+    <div style="display:flex;gap:8px">
+      <input id="q" type="text" placeholder="e.g. Expand section D into a full scene-by-scene edit table with timings"
+             style="flex:1;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
+      <button onclick="askReport()" style="width:auto;margin-top:0;padding:8px 18px">Ask</button>
+    </div>
+    <div id="qa" style="margin-top:10px;font-size:13px;line-height:1.6"></div>
+  </div>
+  <div class="card" id="report"><em style="color:var(--dim)">The report will appear here.</em></div>
 </main>
 <script>
 const statusEl = document.getElementById('status');
@@ -75,12 +85,48 @@ function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
     if(inTable){html+='</table>'; inTable=false;}
     if(ln.startsWith('# ')) html+='<h1>'+esc(ln.slice(2))+'</h1>';
     else if(ln.startsWith('## ')) html+='<h2>'+esc(ln.slice(3))+'</h2>';
+    else if(ln.startsWith('### ')) html+='<h3>'+esc(ln.slice(4))+'</h3>';
     else if(ln.startsWith('- ')) html+='• '+esc(ln.slice(2))+'<br>';
     else if(/^\d+\. /.test(ln)) html+=esc(ln)+'<br>';
     else if(ln.trim()==='') html+='<br>';
     else html+=esc(ln)+'<br>';
   }
-  return html;
+  return html.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+}
+let lastReport=''; let qaLog=[];
+function showAfter(){
+  document.getElementById('after').style.display='block';
+  qaLog=[]; document.getElementById('qa').innerHTML='';
+}
+function downloadReport(){
+  if(!lastReport) return;
+  let md=lastReport;
+  if(qaLog.length) md+='\n\n---\n\n# Follow-up Q&A\n\n'
+    +qaLog.map(h=>`## ${h.role==='user'?'Question':'Answer'}\n\n${h.content}`).join('\n\n');
+  const blob=new Blob([md],{type:'text/markdown'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='edit-table-report-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.md';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+async function askReport(){
+  const q=document.getElementById('q').value.trim();
+  if(!q||!lastReport) return;
+  const qa=document.getElementById('qa');
+  qa.innerHTML+=`<p><strong>Q:</strong> ${esc(q)}</p>`;
+  document.getElementById('q').value='';
+  statusEl.textContent='Thinking…';
+  try{
+    const token=tokenEl.value.trim();
+    const resp=await fetch('/api/ask',{method:'POST',
+      headers:{'Content-Type':'application/json',...(token?{'X-API-Key':token}:{})},
+      body:JSON.stringify({question:q,report_md:lastReport,history:qaLog})});
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.detail||resp.statusText);
+    qaLog.push({role:'user',content:q},{role:'assistant',content:data.answer});
+    qa.innerHTML+=mdToHtml(data.answer)+'<hr style="border-color:#2c313c;margin:14px 0">';
+    statusEl.textContent='';
+  }catch(e){ statusEl.textContent='Error: '+e.message; }
 }
 async function analyze(){
   const btn=document.getElementById('go'); btn.disabled=true;
@@ -114,6 +160,9 @@ async function analyze(){
         html+='<hr style="border-color:#2c313c;margin:28px 0">';
       });
       reportEl.innerHTML=html;
+      lastReport=data.results.filter(r=>!r.error)
+        .map(r=>`# ${r.filename}\n\n${r.report_md}`).join('\n\n---\n\n');
+      showAfter();
       const okN=data.results.filter(r=>!r.error).length;
       statusEl.textContent=`Done: ${okN}/${data.results.length} succeeded.`;
     } else {
@@ -124,6 +173,8 @@ async function analyze(){
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       reportEl.innerHTML=mdToHtml(data.report_md);
+      lastReport=data.report_md;
+      showAfter();
       statusEl.textContent=(data.stages?data.stages.join('\n')+'\n':'')+'Saved: '+data.report_path;
     }
   }catch(e){ statusEl.textContent='Error: '+e.message; }

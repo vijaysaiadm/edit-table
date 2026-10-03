@@ -150,6 +150,16 @@ In the web UI, the **Mode** dropdown offers all of these: *Full swarm*, *Stage 1
 text box for that one; it takes text, not files). Both prompt frameworks load verbatim
 from `prompts-source/` — edit those files to tune the reviewer's behaviour.
 
+After every run, a toolbar appears under the input card:
+
+- **⬇ Download report (.md)** — saves the full report (plus any follow-up Q&A) as a
+  Markdown file.
+- **Ask about this report** — follow-up Q&A on the report (`POST /api/ask`). Interrogate
+  any section ("why is scene 12 AMBER?"), or ask for **dynamic expansion** ("expand the
+  BGM map", "turn section D into a full scene-by-scene table with timings") — the answer
+  arrives as Markdown grounded in the report, and multi-turn context is kept client-side
+  (the last 10 turns are resent), so nothing report-specific persists server-side.
+
 Outputs land in `reports/` as a Markdown edit report (sections A–P from the master prompt)
 plus the full JSON data for downstream tooling.
 
