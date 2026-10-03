@@ -128,13 +128,20 @@ edit-table tenant create editor-b "Independent Editor B"
 # Solo single-agent mode (stage 1)
 edit-table analyze screenplay.txt --stage 1
 
-# Deep editorial review — the Senior Screen Editor A–O report
-# (script mode: narrative/editability/coverage/runtime estimation, P0–P3 priorities)
+# Deep editorial review — the spec-compliant ANALYZE package (decision dashboard,
+# scene register, executable EDIT cards, runtime ledgers, validation gates)
 edit-table analyze screenplay.txt --mode doctor --target-runtime 150
 
-# Develop a logline into a full development package (Delivery Order 1–11:
-# refined logline → story foundation → 3-act beat sheet → scene outline →
-# critical pass → producer pitch → screenplay draft)
+# Revise — source-aware rewrite of an existing screenplay (REPAIR cards with the
+# actual proposed material + setup/payoff, knowledge and continuity audit)
+edit-table analyze screenplay.txt --mode revise --instructions "Make the antagonist more sympathetic"
+
+# Compare two versions — improvements, regressions, changed scenes, unresolved issues
+edit-table compare draft_v1.txt draft_v2.txt
+
+# Develop a logline into a full development package (spec §11 delivery order 1–12:
+# refined logline → story foundation → beat sheet → scene outline → critical pass →
+# producer pitch → screenplay draft)
 edit-table develop "A disgraced boxer gets one last shot at the title." --format feature
 
 # Offline test without an API key (deterministic mock workers)
@@ -146,9 +153,20 @@ edit-table serve    # http://localhost:7100
 ```
 
 In the web UI, the **Mode** dropdown offers all of these: *Full swarm*, *Stage 1 solo*,
-*Deep editorial review*, and *Develop logline → screenplay* (paste the logline into the
-text box for that one; it takes text, not files). Both prompt frameworks load verbatim
-from `prompts-source/` — edit those files to tune the reviewer's behaviour.
+*Deep editorial review*, *Develop logline → screenplay* (paste the logline into the
+text box for that one; it takes text, not files), *Revise* (attach the screenplay as a
+file, put the rewrite request in the text box), and *Compare* (select exactly 2 files —
+first is version A, second is version B). A hint under the dropdown tells you what each
+mode expects. All prompt frameworks load verbatim from `prompts-source/` — edit those
+files to tune the reviewer's behaviour.
+
+Every deliverable follows `prompts-source/SCREEN_EDITOR_OUTPUT_SPEC.md`, the output
+contract: evidence labels (SOURCE FACT / INTERPRETATION / PROPOSAL / UNKNOWN) with
+source anchors, executable intervention cards with stable EDIT IDs and the boundary
+rule (no vague "trim the argument" — exact units or CONDITIONAL), Disposition /
+Operation / Priority kept separate in scene registers, runtime arithmetic in seconds
+with low/base/high scenarios, and a final 13-gate validation table (PASS / FAIL /
+NOT VERIFIED with evidence).
 
 After every run, a toolbar appears under the input card:
 
@@ -159,6 +177,8 @@ After every run, a toolbar appears under the input card:
   BGM map", "turn section D into a full scene-by-scene table with timings") — the answer
   arrives as Markdown grounded in the report, and multi-turn context is kept client-side
   (the last 10 turns are resent), so nothing report-specific persists server-side.
+- **Search report** — highlights every match (scene labels, EDIT IDs, characters) with
+  a live match count.
 
 Outputs land in `reports/` as a Markdown edit report (sections A–P from the master prompt)
 plus the full JSON data for downstream tooling.

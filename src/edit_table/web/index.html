@@ -27,6 +27,7 @@
   #report table { border-collapse:collapse; margin:8px 0; font-size:12px; }
   #report th,#report td { border:1px solid #2c313c; padding:5px 9px; text-align:left; }
   #status { font-size:12px; color:var(--dim); margin-top:10px; white-space:pre-line; }
+  mark { background:var(--accent); color:#111; border-radius:2px; padding:0 1px; }
   .pill { display:inline-block; background:#232833; border-radius:20px; padding:2px 10px; font-size:11px; margin:2px; color:var(--dim); }
 </style>
 </head>
@@ -49,10 +50,13 @@
     <label>Target runtime (minutes, optional)</label>
     <input type="number" id="runtime" min="30" max="400" placeholder="150">
     <label>Mode</label>
-    <select id="stage"><option value="full">Full swarm (stages 1+2+3)</option>
+    <select id="stage" onchange="modeHint()"><option value="full">Full swarm (stages 1+2+3)</option>
       <option value="1">Stage 1 — solo single agent</option>
-      <option value="doctor">Deep editorial review (A–O report)</option>
-      <option value="develop">Develop logline → screenplay package (paste a logline)</option></select>
+      <option value="doctor">Deep editorial review (spec ANALYZE package)</option>
+      <option value="develop">Develop logline → screenplay package (paste a logline)</option>
+      <option value="revise">Revise — rewrite request on a screenplay</option>
+      <option value="compare">Compare two versions (select exactly 2 files)</option></select>
+    <div id="modeHint" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
     <button id="go" onclick="analyze()">Analyze 🎞️</button>
     <div id="status"></div>
   </div>
@@ -65,6 +69,11 @@
       <button onclick="askReport()" style="width:auto;margin-top:0;padding:8px 18px">Ask</button>
     </div>
     <div id="qa" style="margin-top:10px;font-size:13px;line-height:1.6"></div>
+    <label style="margin-top:14px">Search report</label>
+    <input id="search" type="text" placeholder="scene label, EDIT ID, character…"
+           oninput="reportSearch(this.value)"
+           style="width:100%;background:#0c0e12;color:var(--ink);border:1px solid #2c313c;border-radius:8px;padding:8px;">
+    <span id="searchCount" style="font-size:11px;color:var(--dim)"></span>
   </div>
   <div class="card" id="report"><em style="color:var(--dim)">The report will appear here.</em></div>
 </main>
@@ -93,10 +102,37 @@ function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists
   }
   return html.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
 }
-let lastReport=''; let qaLog=[];
+let lastReport=''; let lastReportHtml=''; let qaLog=[];
+const MODE_HINTS={
+  full:'Attach files or paste a screenplay.',
+  1:'Attach files or paste a screenplay — one agent does everything.',
+  doctor:'Attach files or paste a screenplay — full spec-compliant ANALYZE package with edit cards and validation gates.',
+  develop:'Paste your logline in the text box (no files).',
+  revise:'Attach the screenplay as a FILE, and put the rewrite request in the text box.',
+  compare:'Select exactly 2 files — first is version A, second is version B.'};
+function modeHint(){ document.getElementById('modeHint').textContent=MODE_HINTS[document.getElementById('stage').value]||''; }
+modeHint();
+function reportSearch(q){
+  const el=document.getElementById('report');
+  el.innerHTML=lastReportHtml;
+  const cnt=document.getElementById('searchCount');
+  if(!q){ cnt.textContent=''; return; }
+  const rx=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+  const hits=[]; let n;
+  while(n=walker.nextNode()){ rx.lastIndex=0; if(rx.test(n.nodeValue)) hits.push(n); }
+  hits.forEach(node=>{
+    rx.lastIndex=0;
+    const span=document.createElement('span');
+    span.innerHTML=node.nodeValue.replace(rx,'<mark>$1</mark>');
+    node.parentNode.replaceChild(span,node);
+  });
+  cnt.textContent=hits.length+' match(es)';
+}
 function showAfter(){
   document.getElementById('after').style.display='block';
   qaLog=[]; document.getElementById('qa').innerHTML='';
+  document.getElementById('search').value=''; document.getElementById('searchCount').textContent='';
 }
 function downloadReport(){
   if(!lastReport) return;
@@ -139,19 +175,31 @@ async function analyze(){
     const headers = token ? {'X-API-Key':token} : {};
     const fs=[...document.getElementById('file').files];
     const stage=document.getElementById('stage').value;
-    const mode=(stage==='doctor'||stage==='develop') ? stage : 'analyze';
+    const special={doctor:1,develop:1,revise:1,compare:1};
+    const mode=special[stage]?stage:'analyze';
     const rt=document.getElementById('runtime').value;
+    const pastedText=document.getElementById('text').value;
     if(fs.length){
       if(mode==='develop'){ statusEl.textContent='Develop mode takes a pasted logline — remove the file selection and paste your logline in the text box.'; btn.disabled=false; return; }
+      if(mode==='compare'&&fs.length!==2){ statusEl.textContent='Compare mode needs exactly 2 files (version A and version B).'; btn.disabled=false; return; }
+      if(mode==='revise'&&!pastedText.trim()){ statusEl.textContent='Revise mode: put the rewrite request in the text box.'; btn.disabled=false; return; }
       const fd=new FormData();
       fs.forEach(f=>fd.append('files',f));
       fd.append('stage',stage);
       fd.append('mode',mode);
-      if(rt) fd.append('target_runtime',rt);
+      if(mode==='revise') fd.append('instructions',pastedText);
+      if(rt&&mode!=='compare') fd.append('target_runtime',rt);
       statusEl.textContent=`Analyzing ${fs.length} file(s): ${fs.map(f=>f.name).join(', ')}`;
       resp=await fetch('/api/analyze-files',{method:'POST',headers,body:fd});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
+      if(data.report_md!==undefined){   // single-report modes (compare / revise)
+        reportEl.innerHTML=mdToHtml(data.report_md);
+        lastReport=data.report_md; lastReportHtml=reportEl.innerHTML;
+        showAfter();
+        statusEl.textContent='Saved: '+data.report_path;
+        btn.disabled=false; return;
+      }
       let html='';
       data.results.forEach((r,i)=>{
         html+=`<div class="pill">${i+1} / ${data.results.length}</div>`;
@@ -162,18 +210,21 @@ async function analyze(){
       reportEl.innerHTML=html;
       lastReport=data.results.filter(r=>!r.error)
         .map(r=>`# ${r.filename}\n\n${r.report_md}`).join('\n\n---\n\n');
+      lastReportHtml=html;
       showAfter();
       const okN=data.results.filter(r=>!r.error).length;
       statusEl.textContent=`Done: ${okN}/${data.results.length} succeeded.`;
     } else {
-      const text=document.getElementById('text').value;
+      const text=pastedText;
       if(!text.trim()){ statusEl.textContent='Paste a screenplay or choose file(s) first.'; btn.disabled=false; return; }
+      if(mode==='revise'){ statusEl.textContent='Revise mode: attach the screenplay as a file and put the rewrite request in the text box.'; btn.disabled=false; return; }
+      if(mode==='compare'){ statusEl.textContent='Compare mode: select exactly 2 files (version A and version B).'; btn.disabled=false; return; }
       resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json',...headers},
         body:JSON.stringify({screenplay_text:text, stage, mode, target_runtime: rt?+rt:null})});
       const data=await resp.json();
       if(!resp.ok) throw new Error(data.detail||resp.statusText);
       reportEl.innerHTML=mdToHtml(data.report_md);
-      lastReport=data.report_md;
+      lastReport=data.report_md; lastReportHtml=reportEl.innerHTML;
       showAfter();
       statusEl.textContent=(data.stages?data.stages.join('\n')+'\n':'')+'Saved: '+data.report_path;
     }

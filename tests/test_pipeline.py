@@ -125,6 +125,17 @@ def test_doctor_and_develop_mock():
     assert isinstance(dev, str) and "MOCK DEVELOP REPORT" in dev
 
 
+def test_revise_and_compare_mock():
+    """REVISE and COMPARE modes return raw markdown, work offline in mock mode."""
+    import asyncio
+    from edit_table.orchestrator import run_compare, run_revise
+    s = Settings(mock=True)
+    rv = asyncio.run(run_revise(SAMPLE, s, "Make the antagonist more sympathetic"))
+    assert isinstance(rv, str) and "MOCK REVISE REPORT" in rv
+    cp = asyncio.run(run_compare(SAMPLE, SAMPLE, s))
+    assert isinstance(cp, str) and "MOCK COMPARE REPORT" in cp
+
+
 if __name__ == "__main__":
     for name, fn in [(n, f) for n, f in list(globals().items()) if n.startswith("test_")]:
         if fn.__code__.co_argcount == 0:

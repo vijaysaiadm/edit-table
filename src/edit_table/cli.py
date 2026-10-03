@@ -1,6 +1,7 @@
 """Command-line interface.
 
-  edit-table analyze <screenplay> [--mode analyze|doctor] [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
+  edit-table analyze <screenplay> [--mode analyze|doctor|revise] [--instructions "..."] [--tenant ID] [--target-runtime 150] [--mock] [--stage 1|full]
+  edit-table compare <version_a> <version_b> [--tenant ID] [--mock] [--out reports]
   edit-table develop "A logline..." [--format feature] [--out reports] [--mock]
   edit-table tenant list|create|delete ...
   edit-table serve [--port 7100] [--tenants-file tenants.json]
@@ -13,7 +14,8 @@ import sys
 from pathlib import Path
 
 from .config import load_settings
-from .orchestrator import run_analysis, run_doctor, run_develop
+from .orchestrator import (run_analysis, run_compare, run_develop, run_doctor,
+                           run_revise)
 from .report import save_outputs
 from .tenants import DEFAULT_TENANTS_FILE, TenantRegistry
 
@@ -25,8 +27,11 @@ def main(argv: list[str] | None = None) -> None:
 
     p_an = sub.add_parser("analyze", help="Analyze a screenplay (.txt/.md/.pdf/.fountain)")
     p_an.add_argument("screenplay", help="Path to the screenplay file")
-    p_an.add_argument("--mode", choices=["analyze", "doctor"], default="analyze",
-                      help="'analyze' = swarm edit table; 'doctor' = deep editorial review (A–O report)")
+    p_an.add_argument("--mode", choices=["analyze", "doctor", "revise"], default="analyze",
+                      help="'analyze' = swarm edit table; 'doctor' = deep editorial review; "
+                           "'revise' = source-aware rewrite (needs --instructions)")
+    p_an.add_argument("--instructions", default="",
+                      help="REVISE mode: the explicit rewrite request")
     p_an.add_argument("--tenant", default="default",
                       help="Tenant ID to run as (settings + report isolation)")
     p_an.add_argument("--tenants-file", default=DEFAULT_TENANTS_FILE,
@@ -45,6 +50,15 @@ def main(argv: list[str] | None = None) -> None:
                        help="feature / web series / tv serial / sitcom / short film")
     p_dev.add_argument("--out", default="reports", help="Output directory root")
     p_dev.add_argument("--mock", action="store_true",
+                       help="Offline heuristic mode — tests the pipeline without an API key")
+
+    p_cmp = sub.add_parser("compare", help="Compare two screenplay versions (improvements, regressions)")
+    p_cmp.add_argument("version_a", help="Path to version A (older/original)")
+    p_cmp.add_argument("version_b", help="Path to version B (newer/revised)")
+    p_cmp.add_argument("--tenant", default="default", help="Tenant ID to run as")
+    p_cmp.add_argument("--tenants-file", default=DEFAULT_TENANTS_FILE)
+    p_cmp.add_argument("--out", default="reports", help="Output directory root")
+    p_cmp.add_argument("--mock", action="store_true",
                        help="Offline heuristic mode — tests the pipeline without an API key")
 
     p_t = sub.add_parser("tenant", help="Manage tenants")
@@ -88,6 +102,19 @@ def main(argv: list[str] | None = None) -> None:
             md.write_text(md_text, encoding="utf-8")
             print(f"\n✔ Report:  {md}")
             return
+        if args.mode == "revise":
+            if not args.instructions.strip():
+                sys.exit("Revise mode needs --instructions \"what should change\"")
+            print(f"Revising {args.screenplay} "
+                  f"({'MOCK mode' if args.mock else settings.model})...")
+            md_text = asyncio.run(run_revise(args.screenplay, settings, args.instructions,
+                                             target_runtime=args.target_runtime))
+            out = Path(args.out) / args.tenant
+            out.mkdir(parents=True, exist_ok=True)
+            md = out / f"{Path(args.screenplay).stem}_revised.md"
+            md.write_text(md_text, encoding="utf-8")
+            print(f"\n✔ Report:  {md}")
+            return
         stages = (1,) if args.stage == "1" else (1, 2, 3)
         print(f"Analyzing {args.screenplay} as tenant '{args.tenant}' "
               f"({'MOCK mode' if args.mock else settings.model}, stage={'1' if stages == (1,) else 'full'})...")
@@ -111,6 +138,26 @@ def main(argv: list[str] | None = None) -> None:
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
         md = out / "logline_development.md"
+        md.write_text(md_text, encoding="utf-8")
+        print(f"\n✔ Report:  {md}")
+
+    elif args.command == "compare":
+        registry = TenantRegistry(args.tenants_file)
+        tenant = registry.get(args.tenant) if args.tenant != "default" else None
+        if args.tenant != "default" and tenant is None:
+            sys.exit(f"Unknown tenant '{args.tenant}'. Known: "
+                     f"{[t.tenant_id for t in registry.list()] or 'none'}")
+        try:
+            settings = load_settings(mock=args.mock, tenant=tenant)
+        except RuntimeError as e:
+            sys.exit(str(e))
+        settings.tenant_id = args.tenant
+        print(f"Comparing {args.version_a} → {args.version_b} "
+              f"({'MOCK mode' if args.mock else settings.model})...")
+        md_text = asyncio.run(run_compare(args.version_a, args.version_b, settings))
+        out = Path(args.out) / args.tenant
+        out.mkdir(parents=True, exist_ok=True)
+        md = out / f"{Path(args.version_a).stem}_vs_{Path(args.version_b).stem}.md"
         md.write_text(md_text, encoding="utf-8")
         print(f"\n✔ Report:  {md}")
 

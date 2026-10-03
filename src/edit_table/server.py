@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from .config import load_settings
 from .llm import make_llm
-from .orchestrator import run_analysis, run_develop, run_doctor
+from .orchestrator import run_analysis, run_compare, run_develop, run_doctor, run_revise
 from .paths import data_path
 from .report import render_report, save_outputs
 from .server_settings import DEFAULT_SETTINGS_FILE, ServerSettingsStore
@@ -41,8 +41,9 @@ class AnalyzeRequest(BaseModel):
     title: str = "Untitled Screenplay"
     target_runtime: float | None = None
     stage: str = "full"
-    mode: str = "analyze"      # analyze | doctor | develop
+    mode: str = "analyze"      # analyze | doctor | develop | revise | compare
     fmt: str = "feature"       # feature / web series / tv serial / sitcom / short film
+    instructions: str = ""     # REVISE mode: the explicit rewrite request
 
 
 class AskRequest(BaseModel):
@@ -154,10 +155,24 @@ def create_app(tenants_file: str | Path | None = None,
     @app.post("/api/analyze")
     async def analyze_text(req: AnalyzeRequest,
                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
+        settings = load_settings(tenant=tenant, server_defaults=store.get())
         if req.mode == "develop":   # logline → development package; text IS the input
-            settings = load_settings(tenant=tenant, server_defaults=store.get())
             md_text = await run_develop(req.screenplay_text, settings, fmt=req.fmt)
             return await _save_markdown(tenant, md_text, "develop", "logline_development")
+        if req.mode == "revise":
+            if not req.instructions.strip():
+                raise HTTPException(400, "Revise mode needs a rewrite instruction — "
+                                         "describe what should change.")
+            with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
+                                             encoding="utf-8") as f:
+                f.write(req.screenplay_text)
+                tmp = f.name
+            md_text = await run_revise(tmp, settings, req.instructions,
+                                       target_runtime=req.target_runtime)
+            return await _save_markdown(tenant, md_text, "revise", req.title)
+        if req.mode == "compare":
+            raise HTTPException(400, "Compare mode needs two uploaded files — "
+                                     "select both versions and use Analyze.")
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
                                          encoding="utf-8") as f:
             f.write(req.screenplay_text)
@@ -169,8 +184,21 @@ def create_app(tenants_file: str | Path | None = None,
                            target_runtime: float | None = Form(None),
                            stage: str = Form("full"),
                            mode: str = Form("analyze"),
+                           instructions: str = Form(""),
                            tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
         tmp = await _spool(file)
+        if mode == "revise":
+            if not instructions.strip():
+                raise HTTPException(400, "Revise mode needs a rewrite instruction — "
+                                         "put the request in the text box.")
+            settings = load_settings(tenant=tenant, server_defaults=store.get())
+            md_text = await run_revise(tmp, settings, instructions,
+                                       target_runtime=target_runtime)
+            name = Path(file.filename or "screenplay").stem
+            return await _save_markdown(tenant, md_text, "revise", name)
+        if mode == "compare":
+            raise HTTPException(400, "Compare mode needs TWO files — select both "
+                                     "versions at once.")
         return await _run(tenant, tmp, target_runtime, stage, mode=mode)
 
     async def _spool(file: UploadFile) -> str:
@@ -186,9 +214,31 @@ def create_app(tenants_file: str | Path | None = None,
                             target_runtime: float | None = Form(None),
                             stage: str = Form("full"),
                             mode: str = Form("analyze"),
+                            instructions: str = Form(""),
                             tenant: Tenant = Depends(current_tenant)) -> JSONResponse:
         """Analyze many attachments in one request, sequentially, per-tenant guard held
-        for the whole batch. Returns one result per file (failures don't stop the rest)."""
+        for the whole batch. Returns one result per file (failures don't stop the rest).
+        mode=compare  → first two files are version A and B, one comparison report.
+        mode=revise   → first file is the source, 'instructions' is the rewrite request."""
+        if mode == "compare":
+            if len(files) < 2:
+                raise HTTPException(400, "Compare mode needs TWO files — select both "
+                                         "versions at once.")
+            tmp_a, tmp_b = await _spool(files[0]), await _spool(files[1])
+            settings = load_settings(tenant=tenant, server_defaults=store.get())
+            md_text = await run_compare(tmp_a, tmp_b, settings)
+            title = f"{Path(files[0].filename or 'A').stem}_vs_{Path(files[1].filename or 'B').stem}"
+            return await _save_markdown(tenant, md_text, "compare", title)
+        if mode == "revise":
+            if not instructions.strip():
+                raise HTTPException(400, "Revise mode needs a rewrite instruction — "
+                                         "put the request in the text box.")
+            tmp = await _spool(files[0])
+            settings = load_settings(tenant=tenant, server_defaults=store.get())
+            md_text = await run_revise(tmp, settings, instructions,
+                                       target_runtime=target_runtime)
+            name = Path(files[0].filename or "screenplay").stem
+            return await _save_markdown(tenant, md_text, "revise", name)
         results = []
         for file in files:
             name = file.filename or "script.txt"
@@ -221,6 +271,10 @@ def create_app(tenants_file: str | Path | None = None,
             "heading (e.g. expanded scene-by-scene tables with timings, extended BGM maps, "
             "detailed fix lists). The horizon of the report expands dynamically this way.\n"
             "- Be concrete: scene numbers, minute marks, priorities, examples.\n"
+            "- Follow the output spec's evidence rules: tag consequential claims SOURCE FACT / "
+            "INTERPRETATION / PROPOSAL / UNKNOWN; never invent source lines, timecodes, or "
+            "measurements; proposed edits need exact boundaries or a "
+            "CONDITIONAL — BOUNDARIES REQUIRE VERIFICATION mark.\n"
             "- If the report lacks the answer, say so plainly instead of inventing content.\n"
             "Output Markdown."
         )
