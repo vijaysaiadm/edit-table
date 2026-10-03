@@ -1,10 +1,28 @@
-"""Render an AnalysisResult as the master prompt's A–P markdown report."""
+"""Render an AnalysisResult as the master prompt's A–P markdown report.
+
+Color language follows the output spec (§4): every verdict/severity carries an emoji +
+written label so the HTML renderers can color-code deterministically.
+"""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from .models import AnalysisResult
+
+VERDICT_COLOR = {
+    "KEEP": "🟢", "PROTECT": "🟢", "ADD": "🟢", "EXPAND": "🟢",
+    "TRIM": "🟠", "REFINE": "🟠", "RESTRUCTURE": "🟠",
+    "MERGE": "🔵", "MOVE": "🔵", "INTERCUT": "🔵",
+    "REMOVE": "🔴", "DELETE": "🔴",
+}
+SEVERITY_COLOR = {"high": "🔴", "medium": "🟠", "low": "🟡"}
+
+
+def _colored(token: str) -> str:
+    t = (token or "").strip().upper()
+    dot = VERDICT_COLOR.get(t) or SEVERITY_COLOR.get(t.lower())
+    return f"{dot} {token}" if dot else (token or "—")
 
 
 def render_report(result: AnalysisResult) -> str:
@@ -53,6 +71,24 @@ def render_report(result: AnalysisResult) -> str:
             add(f"| ? | ? | {pt} |")
     add("")
 
+    # Protection + global notes from the lead's brief
+    if b.story_priorities:
+        add("\n## Story priorities — protect these")
+        add("")
+        for p in b.story_priorities:
+            add(f"- 🟢 {p}")
+        add("")
+    if b.genre_mix:
+        add(f"**Genre mix:** {', '.join(b.genre_mix)}  ")
+    if b.emotional_core:
+        add(f"**Emotional core:** {b.emotional_core}")
+    if b.global_notes:
+        add("\n## Global notes from the lead")
+        add("")
+        for g in b.global_notes:
+            add(f"- {g}")
+        add("")
+
     # K–L: runtime & repetition
     util_rt = result.utilities.get("runtime")
     add("## K. Runtime problem")
@@ -83,23 +119,90 @@ def render_report(result: AnalysisResult) -> str:
         add(f"{i}. {opp}")
     add("")
 
-    # N. Scene-by-scene edit table
+    # N. Scene-by-scene edit table + runtime ledger + protection list
     add("## N. Scene-by-scene edit table")
     add("")
-    add("| Scene | Verdict | Action | Problem class | Safe/Aggressive |")
-    add("|---|---|---|---|---|")
     analyses = {a.scene_number: a for a in result.scene_analyses}
     verdicts = {v.scene_number: v for v in result.final_verdicts}
+    add("| Scene | Verdict | Action | Problem class | Safe/Aggressive | Est. min |")
+    add("|---|---|---|---|---|---|")
     for n in sorted(set(analyses) | set(verdicts)):
         v = verdicts.get(n)
         a = analyses.get(n)
+        est = f"{a.estimated_runtime:.1f}" if a and a.estimated_runtime else ""
         if v:
-            add(f"| {n} | **{v.verdict}** | {v.action} | "
-                f"{a.problem_class if a else ''} | {v.safe_vs_aggressive} |")
+            add(f"| {n} | **{_colored(v.verdict)}** | {v.action} | "
+                f"{a.problem_class if a else ''} | {v.safe_vs_aggressive} | {est} |")
         elif a:
-            add(f"| {n} | {a.recommended_cut} | {a.editing_opportunity} "
-                f"| {a.problem_class} | — |")
+            add(f"| {n} | **{_colored(a.recommended_cut)}** | {a.editing_opportunity} "
+                f"| {a.problem_class} | — | {est} |")
     add("")
+
+    # Runtime ledger (spec §7): per-scene accounting in one compact table
+    if analyses:
+        add("\n## Runtime ledger")
+        add("")
+        add("| Scene | Current est. | Verdict | Net direction | Confidence |")
+        add("|---|---|---|---|---|")
+        for n in sorted(analyses):
+            a = analyses[n]
+            v = verdicts.get(n)
+            verdict = v.verdict if v else a.recommended_cut
+            direction = {"KEEP": "0", "TRIM": "−", "REMOVE": "−−", "MERGE": "−",
+                         "RESTRUCTURE": "±", "MOVE": "0", "ADD": "+", "EXPAND": "+"}.get(
+                             (verdict or "").upper(), "?")
+            add(f"| {n} | {a.estimated_runtime:.1f} min | {_colored(verdict)} "
+                f"| {direction} | {'HIGH' if a.estimated_runtime else 'LOW'} |")
+        add("")
+
+    # Protection list (spec §10): what must survive the cut
+    protected = [v for v in result.final_verdicts if v.verdict.upper() in ("KEEP", "PROTECT")]
+    if protected:
+        add("\n## Protection list — must survive any cut")
+        add("")
+        for v in protected:
+            add(f"- 🟢 Scene {v.scene_number}: {v.reason or v.action}")
+        add("")
+
+    # Per-scene expandable detail cards with source excerpts
+    if analyses:
+        add("\n## Scene detail cards")
+        add("")
+        add("One card per inspected scene. Expand for the full worker judgment + source excerpt.")
+        add("")
+        for n in sorted(analyses):
+            a = analyses[n]
+            v = verdicts.get(n)
+            verdict = v.verdict if v else a.recommended_cut
+            reason = f" — {v.reason}" if v and v.reason else ""
+            add("<details>")
+            add(f"<summary>Scene {n} · **{_colored(verdict)}**{reason} "
+                f"· ~{a.estimated_runtime:.1f} min · {a.problem_class or 'no class'}</summary>")
+            add("")
+            excerpt = " ".join((result.scene_texts.get(n) or "").split())[:300]
+            if excerpt:
+                add(f"> {excerpt}{' …' if len(' '.join((result.scene_texts.get(n) or '').split())) > 300 else ''}")
+                add("")
+            for label, val in [("Purpose", a.scene_purpose), ("Conflict", a.conflict),
+                               ("Emotional state", a.emotional_state),
+                               ("Audience expectation", a.audience_expectation),
+                               ("Scene hook", a.scene_hook),
+                               ("Turning point", a.turning_point), ("Payoff", a.payoff),
+                               ("Weak point", a.weak_point),
+                               ("Editing opportunity", a.editing_opportunity),
+                               ("Recommended trim", a.recommended_trim),
+                               ("Transition", a.transition),
+                               ("BGM requirement", a.bgm_requirement),
+                               ("Sound design", a.sound_design), ("Tempo", a.tempo),
+                               ("Worker notes", a.notes)]:
+                if val:
+                    add(f"**{label}.** {val}  ")
+            if v:
+                add(f"\n**Lead's action.** {v.action}  ")
+                add(f"**Safe/aggressive:** {v.safe_vs_aggressive}")
+            add("")
+            add("</details>")
+            add("")
 
     # O. BGM / tempo map
     add("## O. BGM / tempo map")

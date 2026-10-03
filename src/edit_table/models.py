@@ -121,6 +121,7 @@ class AnalysisResult:
     final_edit_plan: str = ""
     top_opportunities: list[str] = field(default_factory=list)
     stages: list[str] = field(default_factory=list)  # which stages ran
+    scene_texts: dict[int, str] = field(default_factory=dict)  # scene number -> source text (excerpts)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

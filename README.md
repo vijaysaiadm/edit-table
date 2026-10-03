@@ -194,11 +194,15 @@ Supported inputs: `.txt`, `.md`, `.fountain`, `.pdf`.
 
 ## The report
 
-The report follows the master prompt's output format: one-line story, core conflict,
-hero/antagonist arcs, emotional graph, runtime & repetition problems, top-10 editing
-opportunities, scene-by-scene edit table (KEEP / TRIM / MERGE / RESTRUCTURE / MOVE /
-REMOVE, separated into *safe* vs *aggressive* edits), BGM/tempo map, genre-specialist
-findings, character arcs, reconciliation notes, and the final pass-by-pass edit plan.
+The full-swarm report follows the master prompt's output format: one-line story, core conflict,
+hero/antagonist arcs, emotional graph, story priorities, runtime & repetition problems, top-10
+editing opportunities, a **color-coded** scene-by-scene edit table (🟢 KEEP · 🟠 TRIM /
+RESTRUCTURE · 🔵 MERGE / MOVE · 🔴 REMOVE), a **runtime ledger**, a **protection list** of
+material that must survive the cut, **expandable per-scene detail cards** with source
+excerpts and the full worker judgment, BGM/tempo map, genre-specialist findings, character
+arcs, reconciliation notes, and the final pass-by-pass edit plan. For the even deeper
+spec-compliant deliverable (decision dashboard, EDIT cards, validation gates) use
+**Deep editorial review** mode.
 
 ## Tests
 

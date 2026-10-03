@@ -51,6 +51,10 @@
   #report tr.row-orange td { background:rgba(224,138,46,.07); }
   #report tr.row-green td { background:rgba(46,163,107,.07); }
   #report tr.row-blue td { background:rgba(74,134,216,.07); }
+  #report details { border:1px solid #2c313c; border-radius:8px; margin:8px 0; padding:10px 12px; white-space:normal; }
+  #report summary { cursor:pointer; font-weight:650; color:var(--ink); }
+  #report .excerpt { border-left:3px solid var(--accent); background:#12141a; padding:8px 12px; margin:6px 0;
+                     font-size:12px; color:var(--dim); font-style:italic; white-space:normal; }
   mark { background:var(--accent); color:#111; border-radius:2px; padding:0 1px; }
   .bdg { display:inline-block; padding:0 7px; border-radius:9px; font-size:11px; font-weight:700; white-space:nowrap; }
   .bdg.green  { background:rgba(46,163,107,.18); color:#3ecf8e; }
@@ -117,16 +121,16 @@ const tokenEl = document.getElementById('token');
 tokenEl.value = localStorage.getItem('me_token') || '';
 tokenEl.addEventListener('change', () => localStorage.setItem('me_token', tokenEl.value.trim()));
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
-/* ── color coding: spec §4 colors + P0–P3 + confidence + gates ── */
-const BADGE_RX=/🟢|🟠|🔴|🔵|⚪|\b(P0|P1|P2|P3|KEEP|PROTECT|RETAIN|REFINE|MAJOR REWORK|OPTIONAL TEST|UNASSESSABLE|NOT VERIFIED|CONDITIONAL|PASS|FAIL|HIGH|MEDIUM|LOW)\b/g;
+/* ── color coding: spec §4 colors + edit verdicts + P0–P3 + confidence + gates ── */
+const BADGE_RX=/🟢|🟠|🔴|🔵|⚪|🟡|\b(P0|P1|P2|P3|KEEP|PROTECT|RETAIN|REFINE|MAJOR REWORK|OPTIONAL TEST|UNASSESSABLE|NOT VERIFIED|CONDITIONAL|TRIM|MERGE|RESTRUCTURE|MOVE|REMOVE|ADD|EXPAND|PASS|FAIL|HIGH|MEDIUM|LOW)\b/g;
 function badgeClass(m){
-  if(m==='🟢'||m==='KEEP'||m==='PROTECT'||m==='RETAIN'||m==='PASS'||m==='HIGH') return 'green';
-  if(m==='🟠'||m==='REFINE'||m==='CONDITIONAL'||m==='MEDIUM') return 'orange';
-  if(m==='🔴'||m==='P0'||m==='MAJOR REWORK'||m==='FAIL') return 'red';
+  if(m==='🟢'||m==='KEEP'||m==='PROTECT'||m==='RETAIN'||m==='ADD'||m==='EXPAND'||m==='PASS'||m==='HIGH') return 'green';
+  if(m==='🟠'||m==='REFINE'||m==='CONDITIONAL'||m==='MEDIUM'||m==='TRIM'||m==='RESTRUCTURE') return 'orange';
+  if(m==='🔴'||m==='P0'||m==='MAJOR REWORK'||m==='REMOVE'||m==='FAIL') return 'red';
   if(m==='P1') return 'orange';
-  if(m==='P2'||m==='LOW') return 'yellow';
+  if(m==='P2'||m==='LOW'||m==='🟡') return 'yellow';
   if(m==='P3') return 'grey';
-  if(m==='🔵'||m==='OPTIONAL TEST') return 'blue';
+  if(m==='🔵'||m==='OPTIONAL TEST'||m==='MERGE'||m==='MOVE') return 'blue';
   return 'grey';   // ⚪ UNASSESSABLE NOT VERIFIED
 }
 const badgeify = s => s.replace(BADGE_RX, m => `<span class="bdg ${badgeClass(m)}">${m}</span>`);
@@ -137,7 +141,7 @@ function rowClass(rawLine){
   if(/🟢|\bKEEP\b|\bPASS\b/.test(rawLine)) return 'row-green';
   return '';
 }
-function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists, badges
+function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists, badges, details, excerpts
   const lines = md.split('\n'); let html='', inTable=false;
   for(const ln of lines){
     if(ln.startsWith('|')){ const cells=ln.split('|').slice(1,-1).map(c=>c.trim());
@@ -147,7 +151,9 @@ function mdToHtml(md){ // tiny markdown: headings, tables, bold, lists, badges
       const rc = tag==='td' ? rowClass(ln) : '';
       html+=`<tr class="${rc}">`+cells.map(c=>`<${tag}>`+badgeify(esc(c))+`</${tag}>`).join('')+'</tr>'; continue; }
     if(inTable){html+='</table>'; inTable=false;}
-    if(ln.startsWith('# ')) html+='<h1>'+badgeify(esc(ln.slice(2)))+'</h1>';
+    if(/^\s*<\/?(details|summary)/.test(ln)){ html+=ln.trim()+'\n'; continue; }
+    if(ln.startsWith('&gt; ')||ln.startsWith('> ')) html+='<div class="excerpt">'+badgeify(esc(ln.replace(/^> /,'').replace(/^&gt; /,'')))+'</div>';
+    else if(ln.startsWith('# ')) html+='<h1>'+badgeify(esc(ln.slice(2)))+'</h1>';
     else if(ln.startsWith('## ')) html+='<h2>'+badgeify(esc(ln.slice(3)))+'</h2>';
     else if(ln.startsWith('### ')) html+='<h3>'+badgeify(esc(ln.slice(4)))+'</h3>';
     else if(ln.startsWith('- ')) html+='• '+badgeify(esc(ln.slice(2)))+'<br>';
@@ -208,6 +214,10 @@ td,th{padding:8px;border:1px solid #dbe1df;vertical-align:top}
 tr:nth-child(even){background:#f6f8f7}
 tr.row-red td{background:#fdeeee}tr.row-orange td{background:#fdf6e8}
 tr.row-green td{background:#eef7f0}tr.row-blue td{background:#edf3fc}
+details{border:1px solid #cfdad6;border-radius:4px;margin:10px 0;padding:12px}
+summary{cursor:pointer;font-weight:650;color:#244841}
+.excerpt{border-left:4px solid #426c67;background:#edf3f1;padding:10px 14px;margin:10px 0;
+         font-size:12px;color:#455a64;font-style:italic}
 .bdg{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap}
 .bdg.green{background:#e6f4e9;color:#195b2f}.bdg.orange{background:#fdf0dd;color:#8a4d0f}
 .bdg.red{background:#fde3e3;color:#8f1f1f}.bdg.blue{background:#e3edfb;color:#1c4587}
@@ -216,7 +226,8 @@ button.print{padding:9px 18px;background:#244841;color:#fff;border:0;border-radi
 .note{background:#edf3f1;padding:12px 16px;border-left:4px solid #426c67;font-size:12px;margin:12px 0}
 @media(max-width:700px){main{padding:18px}}
 @media print{body{background:#fff}main{padding:0;max-width:none}nav,.no-print{display:none}
-table{font-size:10px}td,th{padding:5px}tr{break-inside:avoid}h2{break-after:avoid}}
+table{font-size:10px}td,th{padding:5px}tr{break-inside:avoid}h2{break-after:avoid}
+details>*{display:block !important}}
 </style></head><body><main>
 <div class="kicker">EDIT-TABLE · SCREENPLAY ANALYSIS REPORT</div>
 <h1>${esc(lastTitle)}</h1>

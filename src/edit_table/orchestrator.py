@@ -46,6 +46,7 @@ async def run_analysis(path: str | Path, settings: Settings,
         scene_analyses=[], genre_findings=[], utilities={},
         conflicts=[], final_verdicts=[], stages=[],
     )
+    result.scene_texts = {s.number: s.text for s in sp.scenes}  # for report excerpts
     result.stages.append(f"stage1: split into {len(sp.scenes)} scenes "
                          f"(~{sp.estimated_runtime:.0f} min estimated) [{time.time()-t0:.1f}s]")
 
